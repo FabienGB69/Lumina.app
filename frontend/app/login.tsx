@@ -41,7 +41,7 @@ export default function Login() {
         style={s.flex}
       >
         <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-          <Text style={text.label}>ECHO</Text>
+          <Text style={text.label}>LUMINA</Text>
           <Text style={[text.h1, s.title]}>Welcome{"\n"}back.</Text>
           <Text style={[text.bodyDim, s.subtitle]}>
             The universe noticed your absence.

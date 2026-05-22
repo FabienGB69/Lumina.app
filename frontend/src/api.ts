@@ -1,7 +1,7 @@
 import { storage } from "./utils/storage";
 
 const BASE = process.env.EXPO_PUBLIC_BACKEND_URL || "";
-const TOKEN_KEY = "echo_token";
+const TOKEN_KEY = "lumina_token";
 
 let tokenInMemory: string | null = null;
 

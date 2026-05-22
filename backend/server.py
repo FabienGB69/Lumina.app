@@ -1,4 +1,4 @@
-"""Echo backend — FastAPI app.
+"""Lumina backend — FastAPI app.
 Tarot + Astrology API: auth (JWT), natal chart, daily horoscope,
 tarot pulls, friends compatibility, journal, Stripe subscriptions."""
 from __future__ import annotations
@@ -43,7 +43,7 @@ APP_URL = os.environ.get("APP_URL", "")
 stripe.api_key = STRIPE_API_KEY
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger("echo")
+logger = logging.getLogger("lumina")
 
 client = AsyncIOMotorClient(MONGO_URL)
 db = client[DB_NAME]
@@ -57,7 +57,7 @@ payments_col = db["payments"]
 # ---------------------------------------------------------------------------
 # FastAPI app + router
 # ---------------------------------------------------------------------------
-app = FastAPI(title="Echo API")
+app = FastAPI(title="Lumina API")
 api = APIRouter(prefix="/api")
 security = HTTPBearer(auto_error=False)
 
@@ -527,7 +527,7 @@ async def create_checkout(current=Depends(get_current_user)):
             line_items=[{
                 "price_data": {
                     "currency": STRIPE_CURRENCY,
-                    "product_data": {"name": "Echo Premium"},
+                    "product_data": {"name": "Lumina Premium"},
                     "unit_amount": STRIPE_PRICE_AMOUNT,
                     "recurring": {"interval": "month"},
                 },
@@ -536,7 +536,7 @@ async def create_checkout(current=Depends(get_current_user)):
             success_url=f"{APP_URL}/paywall-success?session_id={{CHECKOUT_SESSION_ID}}",
             cancel_url=f"{APP_URL}/paywall-cancel",
             client_reference_id=current["id"],
-            metadata={"echo_user_id": current["id"]},
+            metadata={"lumina_user_id": current["id"]},
         )
     except stripe.error.AuthenticationError:
         logger.exception("stripe auth error")
@@ -619,7 +619,7 @@ async def stripe_webhook(request: Request, stripe_signature: str | None = Header
 # ---------------------------------------------------------------------------
 @api.get("/")
 async def root():
-    return {"status": "ok", "app": "Echo"}
+    return {"status": "ok", "app": "Lumina"}
 
 
 # ---------------------------------------------------------------------------

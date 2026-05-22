@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Echo",
-    "slug": "echo",
+    "name": "Lumina",
+    "slug": "lumina",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "echo",
+    "scheme": "lumina",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {

@@ -55,7 +55,7 @@ export default function Profile() {
           <Text style={[text.bodyDim, { marginTop: spacing.xs }]}>{user?.email}</Text>
           {user?.is_premium ? (
             <View style={s.premiumBadge}>
-              <Text style={s.premiumText}>ECHO PREMIUM</Text>
+              <Text style={s.premiumText}>LUMINA PREMIUM</Text>
             </View>
           ) : (
             <TouchableOpacity

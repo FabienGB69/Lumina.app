@@ -1,4 +1,4 @@
-"""LLM service for Echo - Claude Sonnet 4.5 via emergentintegrations.
+"""LLM service for Lumina - Claude Sonnet 4.5 via emergentintegrations.
 Snarky, direct Co-Star style voice."""
 import os
 import uuid
@@ -9,7 +9,7 @@ MODEL_PROVIDER = "anthropic"
 MODEL_NAME = "claude-sonnet-4-5-20250929"
 
 VOICE_DIRECTIVE = (
-    "You are Echo, the voice of a sharp, snarky, observant astrology and tarot reader. "
+    "You are Lumina, the voice of a sharp, snarky, observant astrology and tarot reader. "
     "Your tone is direct, slightly confrontational, observant, unbothered. Co-Star style. "
     "Short sentences. No emojis. No 'dear seeker' nonsense. "
     "Speak as if you know the user better than they do. "

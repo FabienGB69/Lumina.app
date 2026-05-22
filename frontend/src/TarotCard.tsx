@@ -87,7 +87,7 @@ export function TarotCardBack({ width = 220, height = 360 }: { width?: number; h
     <View style={[s.card, { width, height }]}>
       <View style={s.inner}>
         <View style={s.backCenter}>
-          <Text style={s.backEcho}>E</Text>
+          <Text style={s.backEcho}>L</Text>
           <View style={s.backLine} />
         </View>
       </View>

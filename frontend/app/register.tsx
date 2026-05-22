@@ -50,7 +50,7 @@ export default function Register() {
         style={s.flex}
       >
         <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-          <Text style={text.label}>ECHO</Text>
+          <Text style={text.label}>LUMINA</Text>
           <Text style={[text.h1, s.title]}>Arrive.</Text>
           <Text style={[text.bodyDim, s.subtitle]}>
             The stars require a witness. Be one.

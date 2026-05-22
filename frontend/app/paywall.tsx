@@ -78,7 +78,7 @@ export default function Paywall() {
           <Ionicons name="close" size={28} color={colors.textPrimary} />
         </Pressable>
 
-        <Text style={text.label}>ECHO PREMIUM</Text>
+        <Text style={text.label}>LUMINA PREMIUM</Text>
         <Text style={[text.h1, s.title]}>Truth{"\n"}costs.</Text>
         <Text style={[text.bodyDim, s.subtitle]}>
           Unlock the deck. Lose the limits. Let the planets actually pull their weight.
