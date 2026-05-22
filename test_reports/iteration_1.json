@@ -1,0 +1,66 @@
+{
+  "summary": "First end-to-end backend test run of Echo (Tarot + Astrology). 31 tests written covering auth, onboarding, natal chart, horoscope, tarot, journal, friends, compatibility, Stripe. Found and fixed 1 critical bug (dotenv import ordering). After fix: 27/31 passed. 4 remaining failures are NOT app code bugs — 3 are env/credential issues (Stripe key invalid; EMERGENT_LLM_KEY budget exceeded on one tarot/draw call). All core flows working including Claude Sonnet 4.5 integration, JWT auth + bcrypt + 5-strike lockout, Swiss Ephemeris natal chart (Sun→Pluto + Asc + MC + 12 houses), tarot deck (78 cards), friend compatibility with cached score.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/stripe/checkout & GET /api/stripe/session/{id}",
+        "issue": "Stripe rejects STRIPE_API_KEY='sk_test_emergent' with 401 'Invalid API Key'. The key in /app/backend/.env (and stated as pre-configured in /app/memory/test_credentials.md) is not a real Stripe test key. Either replace with a valid sk_test_* key from Stripe dashboard or mock the Stripe SDK for preview.",
+        "priority": "HIGH"
+      },
+      {
+        "endpoint": "POST /api/tarot/draw (and any LLM endpoint after budget cap)",
+        "issue": "EMERGENT_LLM_KEY enforces a $0.001 max-budget cap that gets exhausted after ~3-4 Claude Sonnet 4.5 calls in a session. Error from litellm: 'Budget has been exceeded! Current cost: 0.00247, Max budget: 0.001'. Once exceeded, every LLM-backed endpoint returns 500. Needs a higher per-pod budget on the key or call-side budget handling.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "POST /api/tarot/draw",
+        "issue": "When the LLM call inside /tarot/draw fails (500), the manual-draw row is NOT persisted, so the daily counter stays at 0 and the user can keep retrying. Probably desired (don't punish user for upstream failure), but worth confirming. Consider also wrapping LLM failures in a 503/502 instead of a generic 500."
+      },
+      {
+        "endpoint": "general",
+        "issue": "/api/stripe/webhook is mounted on app (not the /api router) — currently OK because the path is hard-coded with /api prefix, but it skips CORS middleware ordering inconsistency. Cosmetic."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_echo_api.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Replace STRIPE_API_KEY in /app/backend/.env with a real Stripe test key (sk_test_...) — 'sk_test_emergent' is rejected by Stripe with 401. /app/memory/test_credentials.md should be updated accordingly.",
+    "Request a higher budget cap on EMERGENT_LLM_KEY (current $0.001 max). Claude Sonnet 4.5 calls average ~$0.0006-0.0012 each, so the cap is exhausted after 1-3 readings, making manual tarot draws / compatibility intermittently 500 in real usage.",
+    "Consider catching ChatError/AuthenticationError in /api/horoscope/today, /api/tarot/daily, /api/tarot/draw, /api/friends/compatibility and returning 503 with a friendly message instead of bubbling up a generic 500.",
+    "Optional: wrap STRIPE auth errors specifically and return 503 'Payments temporarily unavailable' (currently a generic 500 leaking the key prefix sk_test_****gent in the error detail).",
+    "Optional: rate-limit /api/auth/register and /api/auth/login to prevent abuse."
+  ],
+  "critical_code_review_comments": [
+    "FIXED: load_dotenv() was called AFTER `from llm_service import ...` in server.py, so EMERGENT_LLM_KEY was empty at module-load time of llm_service.py → all Claude calls failed with 'Missing Anthropic API Key'. Moved load_dotenv to the top of imports.",
+    "llm_service.py reads EMERGENT_KEY at import time. Robust pattern would be to read it inside _chat() so env changes don't require restart.",
+    "server.py is 624 lines — fine for now but approaches the 700 LOC ceiling; consider splitting auth/tarot/friends/stripe into routers if it grows.",
+    "MongoDB ObjectId is correctly excluded everywhere via {'_id': 0} projections — good.",
+    "to_public() and find_one projections are consistent. Pydantic validation on register/login looks correct (EmailStr + min_length).",
+    "JWT_SECRET in .env is a static dev secret — fine for preview, must be rotated for prod.",
+    "Reading_col 'date' field uses today_str() (UTC). For users in non-UTC timezones the 'daily' cap technically rolls over at UTC midnight — acceptable for MVP but worth noting.",
+    "/api/tarot/deck is unauthenticated — fine for a public deck reference, just confirming intent."
+  ],
+  "updated_files": [
+    "/app/backend/server.py (moved load_dotenv before importing llm_service to fix env-loading order)"
+  ],
+  "success_rate": {
+    "backend": "87% (27/31 passed; 4 failures all attributable to env/credentials: 2 Stripe key invalid, 1 LLM budget exhausted, 1 cascading paywall assertion)",
+    "frontend": "not_tested (backend-only run as requested)"
+  },
+  "seed_data_creation": "Two fresh test users created per run with random suffix qa_a_<run>, qa_b_<run> (and a throwaway qa_lock_<run> for the 5-strike lockout test). All onboarded with valid lat/lng. Mongo will accumulate these — main agent may want to add a periodic cleanup or namespace them under a 'TEST_' email prefix.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Re-run /app/backend/tests/test_echo_api.py after main agent updates STRIPE_API_KEY and raises EMERGENT_LLM_KEY budget. Note: tarot/daily and tarot/draw share the per-user date-keyed cache, so the test uses fresh users each run to avoid stale state. Server preview URL: https://echo-tarot.preview.emergentagent.com. Auth: Bearer <token> from /api/auth/register response.",
+  "rca_of_issue": "ROOT CAUSE #1 (FIXED): server.py imported llm_service before calling load_dotenv(), so os.environ.get('EMERGENT_LLM_KEY') returned '' at llm_service module-load time, causing all Claude calls via emergentintegrations.LlmChat to fail with litellm AuthenticationError 'Missing Anthropic API Key'. Fix: hoisted load_dotenv() above the llm_service / astrology / tarot_data imports. Verified by re-running pytest — horoscope, tarot/daily, tarot/draw (first call), and compatibility all returned 200 with valid Claude responses. ROOT CAUSE #2 (env): EMERGENT_LLM_KEY max_budget=$0.001 exhausts after ~3 Claude Sonnet 4.5 calls. ROOT CAUSE #3 (env): STRIPE_API_KEY='sk_test_emergent' is a placeholder, not a Stripe-issued key — Stripe returns 401."
+}
