@@ -1,0 +1,234 @@
+{
+  "project_name": "Echo",
+  "domain": "Astrology & Tarot App",
+  "theme": "DARK",
+  "archetype": "Swiss & High-Contrast (Archetype 4) / Jewel & Luxury (Archetype 5) Blend",
+  "core_principles": [
+    "The stars don't care about your feelings. The design shouldn't either.",
+    "True black backgrounds. High contrast. Zero soft shadows or glowing gradients.",
+    "Generous negative space to isolate content and create visual tension.",
+    "Typography as the primary visual driver. Big, tight, and commanding.",
+    "1px stark borders to separate sections, avoiding cards where possible."
+  ],
+  "colors": {
+    "background": {
+      "default": "#000000",
+      "surface": "#121212",
+      "surface_elevated": "#1A1A1A"
+    },
+    "border": {
+      "default": "#262626",
+      "focus": "#F4F0E6"
+    },
+    "text": {
+      "primary": "#F4F0E6",
+      "secondary": "#A3A3A3",
+      "tertiary": "#666666",
+      "inverse": "#000000"
+    },
+    "accents": {
+      "primary": "#F4F0E6",
+      "crimson": "#A91D1D",
+      "gold": "#C5A059"
+    },
+    "status": {
+      "error": "#A91D1D",
+      "success": "#C5A059"
+    }
+  },
+  "typography": {
+    "fonts": {
+      "heading": "Cormorant Garamond",
+      "body": "Inter",
+      "mono": "Space Mono"
+    },
+    "scales": {
+      "h1": { "size": "48px", "lineHeight": "52px", "tracking": "-0.04em", "weight": "300", "family": "heading" },
+      "h2": { "size": "32px", "lineHeight": "36px", "tracking": "-0.02em", "weight": "400", "family": "heading" },
+      "h3": { "size": "24px", "lineHeight": "28px", "tracking": "-0.01em", "weight": "400", "family": "heading" },
+      "body_lg": { "size": "18px", "lineHeight": "28px", "tracking": "0em", "weight": "400", "family": "body" },
+      "body": { "size": "16px", "lineHeight": "24px", "tracking": "0em", "weight": "400", "family": "body" },
+      "label": { "size": "12px", "lineHeight": "16px", "tracking": "0.1em", "weight": "600", "family": "body", "transform": "uppercase" }
+    }
+  },
+  "layout": {
+    "spacing": {
+      "xs": "4px",
+      "sm": "8px",
+      "md": "16px",
+      "lg": "24px",
+      "xl": "32px",
+      "2xl": "48px",
+      "3xl": "64px"
+    },
+    "radius": {
+      "none": "0px",
+      "sm": "2px",
+      "md": "4px",
+      "full": "9999px"
+    },
+    "border_widths": {
+      "hairline": "0.5px",
+      "thin": "1px"
+    },
+    "grid": {
+      "padding_horizontal": "24px"
+    }
+  },
+  "motion": {
+    "tarot_flip": {
+      "duration": 600,
+      "easing": "cubic-bezier(0.25, 0.1, 0.25, 1)",
+      "perspective": 1000
+    },
+    "page_transition": {
+      "type": "fade",
+      "duration": 300
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": {
+        "backgroundColor": "#F4F0E6",
+        "textColor": "#000000",
+        "borderRadius": "0px",
+        "padding": "16px 24px",
+        "fontFamily": "Inter",
+        "fontWeight": "600",
+        "textTransform": "uppercase",
+        "letterSpacing": "0.1em"
+      },
+      "secondary": {
+        "backgroundColor": "transparent",
+        "textColor": "#F4F0E6",
+        "borderWidth": "1px",
+        "borderColor": "#F4F0E6",
+        "borderRadius": "0px",
+        "padding": "16px 24px"
+      },
+      "ghost": {
+        "backgroundColor": "transparent",
+        "textColor": "#A3A3A3"
+      }
+    },
+    "inputs": {
+      "backgroundColor": "transparent",
+      "borderBottomWidth": "1px",
+      "borderColor": "#262626",
+      "padding": "16px 0px",
+      "textColor": "#F4F0E6",
+      "fontSize": "18px",
+      "fontFamily": "Inter",
+      "activeBorderColor": "#F4F0E6"
+    },
+    "cards": {
+      "backgroundColor": "#121212",
+      "borderWidth": "1px",
+      "borderColor": "#262626",
+      "borderRadius": "2px",
+      "padding": "24px"
+    },
+    "bottom_tabs": {
+      "backgroundColor": "#000000",
+      "borderTopWidth": "1px",
+      "borderTopColor": "#262626",
+      "activeIconColor": "#F4F0E6",
+      "inactiveIconColor": "#666666",
+      "showLabels": false
+    }
+  },
+  "tone_and_microcopy": {
+    "voice": "Direct, slightly confrontational, observant, unbothered.",
+    "examples": {
+      "onboarding_title": "The universe doesn't wait.",
+      "onboarding_subtitle": "Tell us exactly when and where you arrived.",
+      "error_state": "You broke it. Or maybe it's retrograde.",
+      "paywall_title": "Truth costs.",
+      "paywall_subtitle": "Unlock infinite tarot draws and deeper celestial violations.",
+      "daily_tarot_prompt": "Draw a card. Face it.",
+      "compatibility_low": "Absolute disaster. Good luck."
+    }
+  },
+  "screens": {
+    "Auth_Onboarding": {
+      "layout": "Centered massive typography, stark inputs.",
+      "elements": [
+        "H1 heading at top (Cormorant Garamond)",
+        "Inputs for Date, Time, Location with only bottom borders",
+        "Full width primary button pinned to keyboard bottom"
+      ]
+    },
+    "Home_Dashboard": {
+      "layout": "Grid list, edge-to-edge dividers.",
+      "elements": [
+        "Date/Time header in Mono font",
+        "Daily Horoscope block (H2 title + body_lg text)",
+        "Daily Tarot Card (Hero element) - tapping opens modal with flip animation"
+      ]
+    },
+    "Tarot_Deck": {
+      "layout": "Masonry or grid of card backs, horizontal scroll for manual pulls.",
+      "elements": [
+        "High-fidelity card images",
+        "Interactive flip mechanics",
+        "Interpretation overlay in stark white sheet over dark background (bottom sheet)"
+      ]
+    },
+    "Compatibility": {
+      "layout": "Split screen or harsh vertical divide.",
+      "elements": [
+        "User vs Friend avatars (monochrome filters)",
+        "Circular intersecting natal charts",
+        "Brutal percentage match score in H1"
+      ]
+    },
+    "Profile_NatalChart": {
+      "layout": "Data-heavy, 'Control Room' density.",
+      "elements": [
+        "SVG rendered natal wheel (1px white strokes on black)",
+        "List of placements (Sun, Moon, Rising) using monospaced labels"
+      ]
+    },
+    "Paywall": {
+      "layout": "Immersive, high contrast.",
+      "elements": [
+        "Background noise texture",
+        "Gold accent (#C5A059) used sparingly on the 'Unlock' button",
+        "List of premium features in stark white"
+      ]
+    }
+  },
+  "media_urls": {
+    "tarot_cards": {
+      "description": "High-contrast minimalist modern tarot cards for the app (use for Daily Draw or Deck)",
+      "images": [
+        "https://static.prod-images.emergentagent.com/jobs/fcb1e5ad-cbe2-4eb8-a905-a53738db30db/images/e9996de9f467cf13ec2ac54b2f4f4ab5b854ac7eabe4646f27e7f1f79f0c1413.png",
+        "https://static.prod-images.emergentagent.com/jobs/fcb1e5ad-cbe2-4eb8-a905-a53738db30db/images/ddd653d09feab5b84a69cf291fa9a358437573b1d894af05ef54734ae49bd8fd.png",
+        "https://static.prod-images.emergentagent.com/jobs/fcb1e5ad-cbe2-4eb8-a905-a53738db30db/images/eae59512ae9f4144067cd6a42461b7f731689535f1b832b668b60616f28e89cb.png"
+      ]
+    },
+    "textures": {
+      "description": "Background textures for paywalls, empty states, or hero sections",
+      "images": [
+        "https://static.prod-images.emergentagent.com/jobs/fcb1e5ad-cbe2-4eb8-a905-a53738db30db/images/7f6c52c25aff6f500dca6eddb6425a7e01e913175eb806d395cba10828f251cd.png",
+        "https://images.unsplash.com/photo-1647508912006-cd945dd808c9?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MTN8MHwxfHNlYXJjaHwxfHxtaW5pbWFsaXN0JTIwYXN0cm9sb2d5JTIwY29uc3RlbGxhdGlvbnMlMjBkYXJrfGVufDB8fHx8MTc3OTQ2NTUwOXww&ixlib=rb-4.1.0&q=85",
+        "https://images.unsplash.com/photo-1636218581344-7c1040de9d60?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MTN8MHwxfHNlYXJjaHwyfHxtaW5pbWFsaXN0JTIwYXN0cm9sb2d5JTIwY29uc3RlbGxhdGlvbnMlMjBkYXJrfGVufDB8fHx8MTc3OTQ2NTUwOXww&ixlib=rb-4.1.0&q=85"
+      ]
+    }
+  },
+  "testing_attributes": {
+    "instruction": "All interactive and key informational elements MUST include a 'data-testid' attribute (or 'testID' in React Native). Use kebab-case and role-based naming.",
+    "examples": [
+      "testID='auth-submit-button'",
+      "testID='tarot-daily-card'",
+      "testID='nav-tab-home'"
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Strictly adhere to the dark theme and 1px border styling. Do NOT use soft shadows (elevation).",
+    "Use 'testID' prop for React Native instead of 'data-testid'.",
+    "Integrate the provided image URLs via Image components where backgrounds, textures, or tarot cards are needed.",
+    "For the Tarot deck animations, utilize React Native Reanimated or standard Animated API for a flip card effect.",
+    "Ensure all text remains readable by strictly following the 'text.primary' or 'text.secondary' variables against the true black background."
+  ]
+}
