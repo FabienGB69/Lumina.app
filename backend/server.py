@@ -312,7 +312,11 @@ async def horoscope_today(current=Depends(get_current_user)):
     if existing:
         return {"date": today, "text": existing["text"], "cached": True}
     chart_doc = await _ensure_chart(current)
-    text = await daily_horoscope(chart_doc["summary"], today)
+    try:
+        text = await daily_horoscope(chart_doc["summary"], today)
+    except Exception as e:
+        logger.exception("horoscope llm error")
+        raise HTTPException(503, "Horoscope service temporarily unavailable") from e
     await horoscopes_col.insert_one({
         "user_id": current["id"], "date": today, "text": text,
         "created_at": now_utc().isoformat(),
@@ -343,9 +347,13 @@ async def tarot_daily(current=Depends(get_current_user)):
     is_reversed = random.random() < 0.3
     chart_doc = await _ensure_chart(current)
     keywords = card["keywords_reversed"] if is_reversed else card["keywords_upright"]
-    interpretation = await tarot_interpretation(
-        card["name"], keywords, chart_doc["summary"], reversed_=is_reversed
-    )
+    try:
+        interpretation = await tarot_interpretation(
+            card["name"], keywords, chart_doc["summary"], reversed_=is_reversed
+        )
+    except Exception as e:
+        logger.exception("tarot daily llm error")
+        raise HTTPException(503, "Reading service temporarily unavailable") from e
     reading = {
         "id": str(uuid.uuid4()),
         "user_id": current["id"],
@@ -381,9 +389,13 @@ async def tarot_draw(body: TarotDrawIn, current=Depends(get_current_user)):
     is_reversed = random.random() < 0.3
     chart_doc = await _ensure_chart(current)
     keywords = card["keywords_reversed"] if is_reversed else card["keywords_upright"]
-    interpretation = await tarot_interpretation(
-        card["name"], keywords, chart_doc["summary"], body.question, reversed_=is_reversed
-    )
+    try:
+        interpretation = await tarot_interpretation(
+            card["name"], keywords, chart_doc["summary"], body.question, reversed_=is_reversed
+        )
+    except Exception as e:
+        logger.exception("tarot draw llm error")
+        raise HTTPException(503, "Reading service temporarily unavailable") from e
     reading = {
         "id": str(uuid.uuid4()),
         "user_id": current["id"],
@@ -481,10 +493,14 @@ async def compat(body: CompatIn, current=Depends(get_current_user)):
     # Free users see basic teaser; premium full
     user_chart = await _ensure_chart(current)
     friend_chart = await _ensure_chart(friend)
-    result = await compatibility_reading(
-        user_chart["summary"], friend_chart["summary"],
-        current["username"], friend["username"],
-    )
+    try:
+        result = await compatibility_reading(
+            user_chart["summary"], friend_chart["summary"],
+            current["username"], friend["username"],
+        )
+    except Exception as e:
+        logger.exception("compat llm error")
+        raise HTTPException(503, "Compatibility service temporarily unavailable") from e
     doc = {
         "user_id": current["id"],
         "friend_id": body.friend_id,
@@ -522,9 +538,12 @@ async def create_checkout(current=Depends(get_current_user)):
             client_reference_id=current["id"],
             metadata={"echo_user_id": current["id"]},
         )
-    except Exception as e:
+    except stripe.error.AuthenticationError:
+        logger.exception("stripe auth error")
+        raise HTTPException(503, "Payments not configured. Please contact support.")
+    except Exception:
         logger.exception("stripe error")
-        raise HTTPException(500, f"Stripe error: {e}")
+        raise HTTPException(503, "Payment service temporarily unavailable")
     await payments_col.insert_one({
         "user_id": current["id"],
         "session_id": session.id,
