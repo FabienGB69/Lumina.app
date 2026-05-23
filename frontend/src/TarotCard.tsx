@@ -7,6 +7,9 @@ import Animated, {
   interpolate,
   useAnimatedStyle,
   useSharedValue,
+  withRepeat,
+  withSequence,
+  withSpring,
   withTiming,
 } from "react-native-reanimated";
 import { colors, fonts, spacing } from "./theme";
@@ -22,6 +25,9 @@ export type TarotCardData = {
   keywords_reversed: string[];
 };
 
+// ---------------------------------------------------------------------------
+// Card face — premium front
+// ---------------------------------------------------------------------------
 type VisualProps = {
   card: TarotCardData;
   reversed?: boolean;
@@ -95,6 +101,9 @@ export function TarotCardVisual({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Card back — premium gradient + gold L monogram
+// ---------------------------------------------------------------------------
 export function TarotCardBack({
   width = 220,
   height = 360,
@@ -119,12 +128,54 @@ export function TarotCardBack({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Gold shimmer overlay — sweeps once on flip
+// ---------------------------------------------------------------------------
+function GoldShimmer({ width, height, visible }: { width: number; height: number; visible: boolean }) {
+  const translateX = useSharedValue(-width);
+
+  useEffect(() => {
+    if (visible) {
+      translateX.value = -width;
+      translateX.value = withTiming(width * 1.5, { duration: 600, easing: Easing.out(Easing.ease) });
+    }
+  }, [visible, width, translateX]);
+
+  const shimmerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        { position: "absolute", top: 0, left: 0, width, height, borderRadius: 8, overflow: "hidden" },
+      ]}
+    >
+      <Animated.View style={[{ position: "absolute", top: 0, width: width * 0.5, height }, shimmerStyle]}>
+        <LinearGradient
+          colors={["transparent", "rgba(212,175,55,0.45)", "transparent"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={{ flex: 1 }}
+        />
+      </Animated.View>
+    </Animated.View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// FlippableTarotCard — spring flip + shimmer + haptics
+// ---------------------------------------------------------------------------
 type FlippableProps = {
   card: TarotCardData | null;
   reversed?: boolean;
   width?: number;
   height?: number;
-  flipped: boolean;
+  /** Controls flip state from outside */
+  isFlipped: boolean;
+  /** Called when the user taps the card (toggle) */
+  onFlip?: () => void;
 };
 
 export function FlippableTarotCard({
@@ -132,59 +183,109 @@ export function FlippableTarotCard({
   reversed,
   width = 220,
   height = 360,
-  flipped,
+  isFlipped,
+  onFlip,
 }: FlippableProps) {
   const rotation = useSharedValue(0);
+  const scale = useSharedValue(1);
+  const shimmerVisible = useSharedValue(false);
 
   const frontStyle = useAnimatedStyle(() => ({
     transform: [
-      { perspective: 1000 },
+      { perspective: 1200 },
       { rotateY: `${interpolate(rotation.value, [0, 180], [180, 360])}deg` },
+      { scale: scale.value },
     ],
     opacity: rotation.value > 90 ? 1 : 0,
+    backfaceVisibility: "hidden",
   }));
 
   const backStyle = useAnimatedStyle(() => ({
-    transform: [{ perspective: 1000 }, { rotateY: `${rotation.value}deg` }],
+    transform: [
+      { perspective: 1200 },
+      { rotateY: `${rotation.value}deg` },
+      { scale: scale.value },
+    ],
     opacity: rotation.value > 90 ? 0 : 1,
+    backfaceVisibility: "hidden",
   }));
 
   useEffect(() => {
-    if (flipped) {
-      rotation.value = withTiming(180, {
-        duration: 700,
-        easing: Easing.inOut(Easing.ease),
-      });
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    } else {
-      rotation.value = 0;
+    const target = isFlipped ? 180 : 0;
+
+    // Quick scale-down at midpoint for a "pinch" feel
+    scale.value = withSequence(
+      withSpring(0.96, { damping: 12, stiffness: 200 }),
+      withSpring(1, { damping: 10, stiffness: 120 }),
+    );
+
+    rotation.value = withSpring(target, {
+      damping: 18,
+      stiffness: 90,
+      mass: 0.9,
+      overshootClamping: false,
+    });
+
+    if (isFlipped) {
+      shimmerVisible.value = true;
+      // Reset after sweep completes
+      const t = setTimeout(() => { shimmerVisible.value = false; }, 700);
+      return () => clearTimeout(t);
     }
-  }, [flipped, rotation]);
+  }, [isFlipped, rotation, scale, shimmerVisible]);
+
+  const [shimmerOn, setShimmerOn] = React.useState(false);
+  useEffect(() => {
+    if (isFlipped) {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      setShimmerOn(true);
+      const t = setTimeout(() => setShimmerOn(false), 750);
+      return () => clearTimeout(t);
+    } else {
+      setShimmerOn(false);
+    }
+  }, [isFlipped]);
 
   return (
     <View style={{ width, height }}>
+      {/* Back */}
       <Animated.View style={[s.flipAbsolute, backStyle]}>
         <TarotCardBack width={width} height={height} />
+        <GoldShimmer width={width} height={height} visible={shimmerOn} />
       </Animated.View>
+
+      {/* Front */}
       {card && (
         <Animated.View style={[s.flipAbsolute, frontStyle]}>
           <TarotCardVisual card={card} reversed={reversed} width={width} height={height} />
+          {/* Powder pink glow / reflection at bottom */}
+          <View
+            pointerEvents="none"
+            style={[
+              s.pinkReflect,
+              { width, height: height * 0.25, bottom: 0, borderRadius: 8 },
+            ]}
+          />
+          <GoldShimmer width={width} height={height} visible={shimmerOn} />
         </Animated.View>
       )}
     </View>
   );
 }
 
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
 const s = StyleSheet.create({
   cardShell: {
     borderWidth: 1.5,
     borderColor: colors.gold,
     borderRadius: 8,
     shadowColor: colors.purple,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.6,
-    shadowRadius: 16,
-    elevation: 12,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.55,
+    shadowRadius: 20,
+    elevation: 14,
     overflow: "hidden",
   },
   cardGradient: { flex: 1 },
@@ -240,14 +341,14 @@ const s = StyleSheet.create({
   backMonogram: {
     color: colors.gold,
     fontFamily: fonts.headingLight,
-    fontSize: 80,
+    fontSize: 88,
     letterSpacing: -2,
   },
   backLine: {
     width: 48,
     height: 1,
     backgroundColor: colors.gold,
-    opacity: 0.7,
+    opacity: 0.65,
   },
   flipAbsolute: {
     position: "absolute",
@@ -255,6 +356,11 @@ const s = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backfaceVisibility: "hidden",
+  },
+  pinkReflect: {
+    position: "absolute",
+    left: 0,
+    backgroundColor: colors.pink,
+    opacity: 0.04,
   },
 });

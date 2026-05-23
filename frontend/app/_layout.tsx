@@ -12,6 +12,7 @@ import React from "react";
 import { ActivityIndicator, View } from "react-native";
 import { StripeProvider } from "@stripe/stripe-react-native";
 import { AuthProvider } from "../src/auth";
+import { PaymentProvider } from "../src/payments/PaymentProvider";
 import { colors } from "../src/theme";
 
 const STRIPE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
@@ -55,14 +56,16 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY} merchantIdentifier="merchant.com.lumina.app">
         <AuthProvider>
-          <StatusBar style="light" />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: colors.bg },
-              animation: "fade",
-            }}
-          />
+          <PaymentProvider>
+            <StatusBar style="light" />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: colors.bg },
+                animation: "fade",
+              }}
+            />
+          </PaymentProvider>
         </AuthProvider>
       </StripeProvider>
     </QueryClientProvider>

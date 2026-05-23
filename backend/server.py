@@ -20,6 +20,7 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
 import bcrypt  # noqa: E402
+import httpx  # noqa: E402
 import jwt  # noqa: E402
 import stripe  # noqa: E402
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request, status  # noqa: E402
@@ -473,6 +474,16 @@ async def tarot_draw(body: TarotDrawIn, current=Depends(get_current_user)):
     return reading
 
 
+@api.post("/push-token")
+async def save_push_token(body: dict, current=Depends(get_current_user)):
+    """Store Expo push token for this user."""
+    token = (body.get("token") or "").strip()
+    if not token:
+        raise HTTPException(400, "Token required")
+    await users_col.update_one({"id": current["id"]}, {"$set": {"expo_push_token": token}})
+    return {"ok": True}
+
+
 @api.get("/credits")
 async def get_credits(current=Depends(get_current_user)):
     """Returns current credit balance after lazy reset check."""
@@ -658,9 +669,173 @@ async def check_session(session_id: str, current=Depends(get_current_user)):
     return {"payment_status": payment_status, "is_premium": payment_status == "paid"}
 
 
+# ---------------------------------------------------------------------------
+# Expo push helper
+# ---------------------------------------------------------------------------
+EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
+
+async def _send_push(token: str, title: str, body: str, data: dict | None = None) -> None:
+    """Fire-and-forget Expo push notification. Logs but never raises."""
+    if not token or not token.startswith("ExponentPushToken"):
+        return
+    payload = {"to": token, "title": title, "body": body, "sound": "default"}
+    if data:
+        payload["data"] = data
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            r = await client.post(EXPO_PUSH_URL, json=payload)
+            if r.status_code != 200:
+                logger.warning("Push notification failed: %s", r.text)
+    except Exception:
+        logger.exception("Push notification error for token %s", token[:20])
+
+
+# ---------------------------------------------------------------------------
+# Stripe webhook — full subscription lifecycle
+# ---------------------------------------------------------------------------
+
+async def _get_push_token(user_id: str | None) -> str | None:
+    if not user_id:
+        return None
+    u = await users_col.find_one({"id": user_id}, {"expo_push_token": 1})
+    return u.get("expo_push_token") if u else None
+
+
+async def _uid_from_sub(sub_id: str) -> str | None:
+    u = await users_col.find_one({"stripe_subscription_id": sub_id}, {"id": 1})
+    return u["id"] if u else None
+
+
+async def _uid_from_customer(customer_id: str) -> str | None:
+    u = await users_col.find_one({"stripe_customer_id": customer_id}, {"id": 1})
+    return u["id"] if u else None
+
+
+async def _handle_subscription_created(sub: dict) -> None:
+    sub_id = sub.get("id")
+    status_ = sub.get("status", "")
+    customer_id = sub.get("customer")
+    uid = await _uid_from_customer(customer_id) or sub.get("metadata", {}).get("lumina_user_id")
+    if not uid:
+        logger.warning("subscription.created: no user found for customer %s", customer_id)
+        return
+    is_active = status_ in ("active", "trialing")
+    period_end = sub.get("current_period_end")
+    period_end_iso = datetime.fromtimestamp(period_end, tz=timezone.utc).isoformat() if period_end else None
+    await users_col.update_one(
+        {"id": uid},
+        {"$set": {
+            "is_premium": is_active,
+            "stripe_subscription_id": sub_id,
+            "stripe_customer_id": customer_id,
+            "subscription_status": status_,
+            "subscription_tier": "glow",
+            "current_period_end": period_end_iso,
+            "cancel_at": None,
+            **({"premium_since": now_utc().isoformat()} if is_active else {}),
+        }},
+    )
+    logger.info("subscription.created uid=%s sub=%s status=%s", uid, sub_id, status_)
+    if is_active:
+        token = await _get_push_token(uid)
+        await _send_push(token or "", "Welcome to Lumina ✦", "Unlimited readings await you.")
+
+
+async def _handle_subscription_updated(sub: dict) -> None:
+    sub_id = sub.get("id")
+    status_ = sub.get("status", "")
+    uid = await _uid_from_sub(sub_id)
+    if not uid:
+        logger.warning("subscription.updated: unknown sub %s", sub_id)
+        return
+    is_active = status_ in ("active", "trialing")
+    period_end = sub.get("current_period_end")
+    period_end_iso = datetime.fromtimestamp(period_end, tz=timezone.utc).isoformat() if period_end else None
+    cancel_at = sub.get("cancel_at")
+    cancel_at_iso = datetime.fromtimestamp(cancel_at, tz=timezone.utc).isoformat() if cancel_at else None
+    await users_col.update_one(
+        {"id": uid},
+        {"$set": {
+            "is_premium": is_active,
+            "subscription_status": status_,
+            "current_period_end": period_end_iso,
+            "cancel_at": cancel_at_iso,
+        }},
+    )
+    logger.info("subscription.updated uid=%s sub=%s status=%s", uid, sub_id, status_)
+    if cancel_at and is_active:
+        token = await _get_push_token(uid)
+        await _send_push(token or "", "Lumina subscription ending", "Your access continues until the end of the billing period.")
+
+
+async def _handle_subscription_deleted(sub: dict) -> None:
+    sub_id = sub.get("id")
+    uid = await _uid_from_sub(sub_id)
+    if not uid:
+        logger.warning("subscription.deleted: unknown sub %s", sub_id)
+        return
+    await users_col.update_one(
+        {"id": uid},
+        {"$set": {
+            "is_premium": False,
+            "subscription_status": "canceled",
+            "tarot_credits": 3,
+            "tarot_credits_reset_at": _next_midnight().isoformat(),
+        }},
+    )
+    logger.info("subscription.deleted uid=%s sub=%s — downgraded to free", uid, sub_id)
+    token = await _get_push_token(uid)
+    await _send_push(token or "", "Lumina subscription ended", "You still have 3 free credits per day.")
+
+
+async def _handle_invoice_payment_succeeded(invoice: dict) -> None:
+    sub_id = invoice.get("subscription")
+    customer_id = invoice.get("customer")
+    uid = await _uid_from_sub(sub_id) if sub_id else await _uid_from_customer(customer_id)
+    if not uid:
+        return
+    # Renew: ensure is_premium stays active
+    await users_col.update_one(
+        {"id": uid},
+        {"$set": {"is_premium": True, "subscription_status": "active"}},
+    )
+    logger.info("invoice.payment_succeeded uid=%s amount=%s", uid, invoice.get("amount_paid"))
+
+
+async def _handle_invoice_payment_failed(invoice: dict) -> None:
+    sub_id = invoice.get("subscription")
+    customer_id = invoice.get("customer")
+    uid = await _uid_from_sub(sub_id) if sub_id else await _uid_from_customer(customer_id)
+    if not uid:
+        return
+    attempt = invoice.get("attempt_count", 1)
+    logger.warning("invoice.payment_failed uid=%s attempt=%s", uid, attempt)
+    # After 3 failed attempts Stripe cancels; we just notify the user
+    token = await _get_push_token(uid)
+    await _send_push(
+        token or "",
+        "Payment failed",
+        "Please update your payment method to keep your Lumina subscription.",
+        {"screen": "paywall"},
+    )
+
+
+# Idempotency: track processed event IDs in memory (sufficient for single-process deployment)
+_processed_events: set[str] = set()
+
+_WEBHOOK_HANDLERS: dict[str, Any] = {
+    "checkout.session.completed": None,  # handled inline (needs uid from client_reference_id)
+    "customer.subscription.created": _handle_subscription_created,
+    "customer.subscription.updated": _handle_subscription_updated,
+    "customer.subscription.deleted": _handle_subscription_deleted,
+    "invoice.payment_succeeded": _handle_invoice_payment_succeeded,
+    "invoice.payment_failed": _handle_invoice_payment_failed,
+}
+
+
 @app.post("/api/stripe/webhook")
 async def stripe_webhook(request: Request, stripe_signature: str | None = Header(default=None)):
-    """Stripe webhook — signature-verified. Set STRIPE_WEBHOOK_SECRET in env."""
+    """Stripe webhook — signature-verified, idempotent, full subscription lifecycle."""
     if not STRIPE_WEBHOOK_SECRET:
         raise HTTPException(500, "Webhook secret not configured")
     if not stripe_signature:
@@ -672,25 +847,49 @@ async def stripe_webhook(request: Request, stripe_signature: str | None = Header
         raise HTTPException(400, "Invalid webhook signature")
     except Exception:
         raise HTTPException(400, "Invalid webhook payload")
-    if event["type"] == "checkout.session.completed":
-        sess = event["data"]["object"]
-        uid = sess.get("client_reference_id")
-        if uid:
-            await users_col.update_one(
-                {"id": uid},
-                {"$set": {"is_premium": True,
-                          "stripe_subscription_id": sess.get("subscription"),
-                          "premium_since": now_utc().isoformat()}},
-            )
-    elif event["type"] in ("customer.subscription.deleted", "customer.subscription.updated"):
-        sub = event["data"]["object"]
-        status_ = sub.get("status")
-        sub_id = sub.get("id")
-        if status_ in ("canceled", "unpaid", "incomplete_expired"):
-            await users_col.update_one(
-                {"stripe_subscription_id": sub_id},
-                {"$set": {"is_premium": False}},
-            )
+
+    event_id = event.get("id", "")
+    event_type = event.get("type", "")
+    logger.info("stripe webhook event_id=%s type=%s", event_id, event_type)
+
+    # Idempotency guard
+    if event_id and event_id in _processed_events:
+        logger.info("duplicate event %s — skipping", event_id)
+        return {"received": True}
+
+    try:
+        if event_type == "checkout.session.completed":
+            sess = event["data"]["object"]
+            uid = sess.get("client_reference_id")
+            if uid:
+                await users_col.update_one(
+                    {"id": uid},
+                    {"$set": {
+                        "is_premium": True,
+                        "stripe_subscription_id": sess.get("subscription"),
+                        "stripe_customer_id": sess.get("customer"),
+                        "subscription_status": "active",
+                        "premium_since": now_utc().isoformat(),
+                    }},
+                )
+                logger.info("checkout.session.completed uid=%s", uid)
+                token = await _get_push_token(uid)
+                await _send_push(token or "", "Welcome to Lumina ✦", "Your premium access is now active.")
+        elif event_type in _WEBHOOK_HANDLERS and _WEBHOOK_HANDLERS[event_type]:
+            await _WEBHOOK_HANDLERS[event_type](event["data"]["object"])
+        else:
+            logger.debug("unhandled event type: %s", event_type)
+    except Exception:
+        logger.exception("Error processing webhook event %s", event_id)
+        # Return 200 to prevent Stripe from retrying non-recoverable errors
+        # (e.g. user not found). For transient errors the caller should raise 500.
+
+    if event_id:
+        _processed_events.add(event_id)
+        # Keep set bounded
+        if len(_processed_events) > 10_000:
+            _processed_events.clear()
+
     return {"received": True}
 
 
