@@ -112,6 +112,8 @@ class UserPublic(BaseModel):
     birth_place: str | None = None
     birth_lat: float | None = None
     birth_lng: float | None = None
+    tarot_credits: int = 3
+    tarot_credits_reset_at: str | None = None
 
 
 class TokenOut(BaseModel):
@@ -148,6 +150,35 @@ def today_str() -> str:
     return now_utc().date().isoformat()
 
 
+def _next_midnight() -> datetime:
+    """Returns the next UTC midnight (start of tomorrow)."""
+    tomorrow = (now_utc() + timedelta(days=1)).date()
+    return datetime(tomorrow.year, tomorrow.month, tomorrow.day, tzinfo=timezone.utc)
+
+
+async def _ensure_credits(user: dict) -> dict:
+    """Lazily resets credits at midnight UTC. Returns updated user dict."""
+    reset_at_str = user.get("tarot_credits_reset_at")
+    if reset_at_str:
+        try:
+            reset_at = datetime.fromisoformat(reset_at_str)
+            if reset_at.tzinfo is None:
+                reset_at = reset_at.replace(tzinfo=timezone.utc)
+        except ValueError:
+            reset_at = now_utc()
+    else:
+        reset_at = now_utc()
+
+    if now_utc() >= reset_at:
+        new_reset = _next_midnight()
+        await users_col.update_one(
+            {"id": user["id"]},
+            {"$set": {"tarot_credits": 3, "tarot_credits_reset_at": new_reset.isoformat()}},
+        )
+        user = {**user, "tarot_credits": 3, "tarot_credits_reset_at": new_reset.isoformat()}
+    return user
+
+
 def hash_password(p: str) -> str:
     return bcrypt.hashpw(p.encode(), bcrypt.gensalt()).decode()
 
@@ -180,6 +211,8 @@ def to_public(u: dict) -> UserPublic:
         birth_place=u.get("birth_place"),
         birth_lat=u.get("birth_lat"),
         birth_lng=u.get("birth_lng"),
+        tarot_credits=u.get("tarot_credits", 3),
+        tarot_credits_reset_at=u.get("tarot_credits_reset_at"),
     )
 
 
@@ -221,6 +254,8 @@ async def register(body: RegisterIn, request: Request):
         "onboarded": False,
         "failed_login_count": 0,
         "lock_until": None,
+        "tarot_credits": 3,
+        "tarot_credits_reset_at": _next_midnight().isoformat(),
         "created_at": now_utc().isoformat(),
     }
     await users_col.insert_one(user)
@@ -396,18 +431,20 @@ async def tarot_daily(current=Depends(get_current_user)):
 
 @api.post("/tarot/draw")
 async def tarot_draw(body: TarotDrawIn, current=Depends(get_current_user)):
-    """Manual tarot draw. Premium unlocks unlimited; free gets 1 per day total."""
+    """Manual tarot draw. Premium = unlimited. Free = 3 credits/day, resets at midnight UTC."""
     if not current.get("onboarded"):
         raise HTTPException(400, "Complete onboarding first")
     today = today_str()
     if not current.get("is_premium"):
-        manual_today = await readings_col.count_documents(
-            {"user_id": current["id"], "kind": "manual", "date": today}
-        )
-        if manual_today >= 1:
+        current = await _ensure_credits(current)
+        credits = current.get("tarot_credits", 0)
+        if credits <= 0:
             raise HTTPException(
-                402, "Free tier: 1 manual draw per day. Upgrade to Premium for unlimited."
+                402, "No credits remaining. Credits reset at midnight. Upgrade for unlimited."
             )
+        await users_col.update_one(
+            {"id": current["id"]}, {"$inc": {"tarot_credits": -1}}
+        )
     card = random.choice(DECK)
     is_reversed = random.random() < 0.3
     chart_doc = await _ensure_chart(current)
@@ -434,6 +471,19 @@ async def tarot_draw(body: TarotDrawIn, current=Depends(get_current_user)):
     await readings_col.insert_one(reading)
     reading.pop("_id", None)
     return reading
+
+
+@api.get("/credits")
+async def get_credits(current=Depends(get_current_user)):
+    """Returns current credit balance after lazy reset check."""
+    if current.get("is_premium"):
+        return {"credits": None, "reset_at": None, "is_premium": True}
+    current = await _ensure_credits(current)
+    return {
+        "credits": current.get("tarot_credits", 3),
+        "reset_at": current.get("tarot_credits_reset_at"),
+        "is_premium": False,
+    }
 
 
 # ---------------------------------------------------------------------------

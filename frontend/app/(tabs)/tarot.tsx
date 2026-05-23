@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../src/api";
 import { useAuth } from "../../src/auth";
+import { useCreditsStore } from "../../src/stores/creditsStore";
 import { FlippableTarotCard, TarotCardBack } from "../../src/TarotCard";
 import { getCardById, useDeck } from "../../src/deck";
 import { colors, spacing, text } from "../../src/theme";
@@ -23,6 +24,7 @@ const CARD_H = 360;
 export default function TarotScreen() {
   const { user } = useAuth();
   const deck = useDeck();
+  const { decrement: decrementCredits } = useCreditsStore();
   const [question, setQuestion] = useState("");
   const [drawing, setDrawing] = useState(false);
   const [reading, setReading] = useState<any>(null);
@@ -36,6 +38,7 @@ export default function TarotScreen() {
     try {
       const r = await api.tarotDraw(question || undefined);
       setReading(r);
+      decrementCredits();
     } catch (e: any) {
       setError(e.message || "Could not draw");
       if (e.status === 402) {

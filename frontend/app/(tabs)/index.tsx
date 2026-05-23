@@ -13,15 +13,41 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../src/api";
 import { useAuth } from "../../src/auth";
+import { useCreditsStore } from "../../src/stores/creditsStore";
 import { TarotCardVisual } from "../../src/TarotCard";
 import { getCardById, useDeck } from "../../src/deck";
-import { colors, spacing, text } from "../../src/theme";
+import { colors, fonts, spacing, text } from "../../src/theme";
 
 function todayLabel() {
   const d = new Date();
   return d
     .toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
     .toUpperCase();
+}
+
+function CreditPill() {
+  const { credits, isPremium, fetch } = useCreditsStore();
+
+  useEffect(() => {
+    void fetch();
+  }, [fetch]);
+
+  if (isPremium) return null;
+  if (credits === null) return null;
+
+  const isEmpty = credits === 0;
+
+  return (
+    <TouchableOpacity
+      style={[s.pill, isEmpty && s.pillEmpty]}
+      onPress={() => router.push("/paywall")}
+      activeOpacity={0.8}
+    >
+      <Text style={[s.pillText, isEmpty && s.pillTextEmpty]}>
+        {isEmpty ? "NO CREDITS · UPGRADE" : `✦ ${credits} CREDIT${credits === 1 ? "" : "S"}`}
+      </Text>
+    </TouchableOpacity>
+  );
 }
 
 export default function Today() {
@@ -33,6 +59,8 @@ export default function Today() {
   const [loadingC, setLoadingC] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+
+  const { fetch: fetchCredits } = useCreditsStore();
 
   const load = useCallback(async () => {
     setError(null);
@@ -54,7 +82,7 @@ export default function Today() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await load();
+    await Promise.all([load(), fetchCredits()]);
     setRefreshing(false);
   };
 
@@ -65,12 +93,17 @@ export default function Today() {
       <ScrollView
         contentContainerStyle={s.scroll}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textPrimary} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} />
         }
       >
         <View style={s.header}>
-          <Text style={text.label}>{todayLabel()}</Text>
-          <Text style={[text.h2, { marginTop: spacing.xs }]}>Hi, {user?.username}.</Text>
+          <View style={s.headerRow}>
+            <View>
+              <Text style={text.label}>{todayLabel()}</Text>
+              <Text style={[text.h2, { marginTop: spacing.xs }]}>Hi, {user?.username}.</Text>
+            </View>
+            <CreditPill />
+          </View>
         </View>
 
         <View style={s.section}>
@@ -128,6 +161,33 @@ const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   scroll: { paddingBottom: spacing.xxl },
   header: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.md },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  pill: {
+    backgroundColor: colors.pink,
+    paddingHorizontal: spacing.sm + 4,
+    paddingVertical: 5,
+    borderRadius: 999,
+    alignSelf: "flex-start",
+    marginTop: spacing.xs,
+  },
+  pillEmpty: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: colors.error,
+  },
+  pillText: {
+    color: colors.textInverse,
+    fontFamily: fonts.bodySemibold,
+    fontSize: 10,
+    letterSpacing: 1,
+  },
+  pillTextEmpty: {
+    color: colors.error,
+  },
   section: { paddingHorizontal: spacing.lg, paddingVertical: spacing.lg, gap: spacing.md },
   divider: { height: 1, backgroundColor: colors.border, marginHorizontal: spacing.lg },
   horoscope: { lineHeight: 30, fontSize: 19 },
