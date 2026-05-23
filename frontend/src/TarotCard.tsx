@@ -2,6 +2,7 @@ import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Easing,
   interpolate,
@@ -129,20 +130,34 @@ export function TarotCardBack({
 }
 
 // ---------------------------------------------------------------------------
-// Gold shimmer overlay — sweeps once on flip
+// Gold shimmer overlay — sweeps once on flip, with richer 5-stop gradient
+// and a secondary pink shimmer 200ms behind the gold one
 // ---------------------------------------------------------------------------
 function GoldShimmer({ width, height, visible }: { width: number; height: number; visible: boolean }) {
   const translateX = useSharedValue(-width);
+  const pinkTranslateX = useSharedValue(-width);
 
   useEffect(() => {
     if (visible) {
       translateX.value = -width;
-      translateX.value = withTiming(width * 1.5, { duration: 600, easing: Easing.out(Easing.ease) });
+      pinkTranslateX.value = -width;
+
+      translateX.value = withTiming(width * 1.5, { duration: 800, easing: Easing.out(Easing.ease) });
+
+      // Pink sweep starts 200ms after gold
+      const t = setTimeout(() => {
+        pinkTranslateX.value = withTiming(width * 1.5, { duration: 800, easing: Easing.out(Easing.ease) });
+      }, 200);
+      return () => clearTimeout(t);
     }
-  }, [visible, width, translateX]);
+  }, [visible, width, translateX, pinkTranslateX]);
 
   const shimmerStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
+  }));
+
+  const pinkShimmerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: pinkTranslateX.value }],
   }));
 
   return (
@@ -152,9 +167,20 @@ function GoldShimmer({ width, height, visible }: { width: number; height: number
         { position: "absolute", top: 0, left: 0, width, height, borderRadius: 8, overflow: "hidden" },
       ]}
     >
-      <Animated.View style={[{ position: "absolute", top: 0, width: width * 0.5, height }, shimmerStyle]}>
+      {/* Gold sweep — wider, richer 5-stop gradient */}
+      <Animated.View style={[{ position: "absolute", top: 0, width: width * 0.65, height }, shimmerStyle]}>
         <LinearGradient
-          colors={["transparent", "rgba(212,175,55,0.45)", "transparent"]}
+          colors={["transparent", "rgba(212,175,55,0.3)", "rgba(232,200,74,0.55)", "rgba(212,175,55,0.3)", "transparent"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={{ flex: 1 }}
+        />
+      </Animated.View>
+
+      {/* Pink sweep — subtle, trails the gold */}
+      <Animated.View style={[{ position: "absolute", top: 0, width: width * 0.65, height }, pinkShimmerStyle]}>
+        <LinearGradient
+          colors={["transparent", "rgba(232,180,200,0.2)", "transparent"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={{ flex: 1 }}
@@ -165,7 +191,7 @@ function GoldShimmer({ width, height, visible }: { width: number; height: number
 }
 
 // ---------------------------------------------------------------------------
-// FlippableTarotCard — spring flip + shimmer + haptics
+// FlippableTarotCard — spring flip + shimmer + haptics + parallax tilt + entry spring
 // ---------------------------------------------------------------------------
 type FlippableProps = {
   card: TarotCardData | null;
@@ -190,10 +216,30 @@ export function FlippableTarotCard({
   const scale = useSharedValue(1);
   const shimmerVisible = useSharedValue(false);
 
+  // Entry animation
+  const entryScale = useSharedValue(0.88);
+  const entryOpacity = useSharedValue(0);
+
+  // Parallax tilt — only active when card is face-up
+  const tiltX = useSharedValue(0);
+  const tiltY = useSharedValue(0);
+
+  useEffect(() => {
+    entryScale.value = withSpring(1, { damping: 14, stiffness: 100 });
+    entryOpacity.value = withTiming(1, { duration: 400 });
+  }, []);
+
+  const entryStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: entryScale.value }],
+    opacity: entryOpacity.value,
+  }));
+
   const frontStyle = useAnimatedStyle(() => ({
     transform: [
       { perspective: 1200 },
       { rotateY: `${interpolate(rotation.value, [0, 180], [180, 360])}deg` },
+      { rotateX: `${tiltX.value}deg` },
+      { rotateY: `${tiltY.value}deg` },
       { scale: scale.value },
     ],
     opacity: rotation.value > 90 ? 1 : 0,
@@ -213,7 +259,6 @@ export function FlippableTarotCard({
   useEffect(() => {
     const target = isFlipped ? 180 : 0;
 
-    // Quick scale-down at midpoint for a "pinch" feel
     scale.value = withSequence(
       withSpring(0.96, { damping: 12, stiffness: 200 }),
       withSpring(1, { damping: 10, stiffness: 120 }),
@@ -228,8 +273,7 @@ export function FlippableTarotCard({
 
     if (isFlipped) {
       shimmerVisible.value = true;
-      // Reset after sweep completes
-      const t = setTimeout(() => { shimmerVisible.value = false; }, 700);
+      const t = setTimeout(() => { shimmerVisible.value = false; }, 900);
       return () => clearTimeout(t);
     }
   }, [isFlipped, rotation, scale, shimmerVisible]);
@@ -239,37 +283,52 @@ export function FlippableTarotCard({
     if (isFlipped) {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       setShimmerOn(true);
-      const t = setTimeout(() => setShimmerOn(false), 750);
+      const t = setTimeout(() => setShimmerOn(false), 950);
       return () => clearTimeout(t);
     } else {
       setShimmerOn(false);
     }
   }, [isFlipped]);
 
+  // Pan gesture for parallax tilt — only meaningful when face-up
+  const panGesture = Gesture.Pan()
+    .onUpdate((e) => {
+      if (!isFlipped) return;
+      // Map ±120px pan to ±10deg tilt
+      tiltX.value = (-e.translationY / 120) * 10;
+      tiltY.value = (e.translationX / 120) * 10;
+    })
+    .onEnd(() => {
+      tiltX.value = withSpring(0, { damping: 14, stiffness: 120 });
+      tiltY.value = withSpring(0, { damping: 14, stiffness: 120 });
+    });
+
   return (
-    <View style={{ width, height }}>
+    <Animated.View style={[{ width, height }, entryStyle]}>
       {/* Back */}
       <Animated.View style={[s.flipAbsolute, backStyle]}>
         <TarotCardBack width={width} height={height} />
         <GoldShimmer width={width} height={height} visible={shimmerOn} />
       </Animated.View>
 
-      {/* Front */}
+      {/* Front — wrapped in GestureDetector for parallax tilt */}
       {card && (
-        <Animated.View style={[s.flipAbsolute, frontStyle]}>
-          <TarotCardVisual card={card} reversed={reversed} width={width} height={height} />
-          {/* Powder pink glow / reflection at bottom */}
-          <View
-            pointerEvents="none"
-            style={[
-              s.pinkReflect,
-              { width, height: height * 0.25, bottom: 0, borderRadius: 8 },
-            ]}
-          />
-          <GoldShimmer width={width} height={height} visible={shimmerOn} />
-        </Animated.View>
+        <GestureDetector gesture={panGesture}>
+          <Animated.View style={[s.flipAbsolute, frontStyle]}>
+            <TarotCardVisual card={card} reversed={reversed} width={width} height={height} />
+            {/* Pink reflection at bottom — slightly elevated opacity for depth */}
+            <View
+              pointerEvents="none"
+              style={[
+                s.pinkReflect,
+                { width, height: height * 0.25, bottom: 0, borderRadius: 8 },
+              ]}
+            />
+            <GoldShimmer width={width} height={height} visible={shimmerOn} />
+          </Animated.View>
+        </GestureDetector>
       )}
-    </View>
+    </Animated.View>
   );
 }
 
@@ -361,6 +420,6 @@ const s = StyleSheet.create({
     position: "absolute",
     left: 0,
     backgroundColor: colors.pink,
-    opacity: 0.04,
+    opacity: 0.07,
   },
 });
