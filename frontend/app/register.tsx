@@ -141,7 +141,7 @@ const s = StyleSheet.create({
     fontSize: 18,
     fontFamily: "Inter_400Regular",
   },
-  error: { color: colors.crimson, fontFamily: "Inter_500Medium", fontSize: 13 },
+  error: { color: colors.error, fontFamily: "Inter_500Medium", fontSize: 13 },
   primaryBtn: {
     backgroundColor: colors.textPrimary,
     paddingVertical: spacing.md,

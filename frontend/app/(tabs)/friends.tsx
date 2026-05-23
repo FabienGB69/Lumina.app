@@ -236,7 +236,7 @@ const s = StyleSheet.create({
     fontSize: 22,
     fontFamily: "Inter_400Regular",
   },
-  error: { color: colors.crimson, marginTop: spacing.md, fontFamily: "Inter_500Medium" },
+  error: { color: colors.error, marginTop: spacing.md, fontFamily: "Inter_500Medium" },
   primaryBtn: {
     backgroundColor: colors.textPrimary,
     paddingVertical: spacing.md,

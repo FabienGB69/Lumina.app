@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../src/api";
 import { useAuth } from "../src/auth";
+import { PaymentSheet } from "../src/components/PaymentSheet";
 import { colors, spacing, text } from "../src/theme";
 
 const BENEFITS = [
@@ -107,6 +108,17 @@ export default function Paywall() {
           </Text>
         ) : null}
 
+        <PaymentSheet
+          label="Lumina Premium"
+          amount={999}
+          currency="eur"
+          onSuccess={() => {
+            // Apple Pay path: show success state, trigger Stripe session polling
+            setError(null);
+          }}
+          onError={(msg) => setError(msg)}
+        />
+
         <TouchableOpacity
           testID="paywall-subscribe"
           style={[s.unlockBtn, (loading || polling) && { opacity: 0.6 }]}
@@ -116,7 +128,7 @@ export default function Paywall() {
           {loading ? (
             <ActivityIndicator color={colors.textInverse} />
           ) : (
-            <Text style={s.unlockBtnText}>{polling ? "VERIFYING..." : "UNLOCK"}</Text>
+            <Text style={s.unlockBtnText}>{polling ? "VERIFYING..." : "PAY WITH CARD"}</Text>
           )}
         </TouchableOpacity>
 
@@ -151,7 +163,7 @@ const s = StyleSheet.create({
     color: colors.textPrimary,
     letterSpacing: -1.5,
   },
-  error: { color: colors.crimson, fontFamily: "Inter_500Medium", textAlign: "center" },
+  error: { color: colors.error, fontFamily: "Inter_500Medium", textAlign: "center" },
   unlockBtn: {
     backgroundColor: colors.gold,
     paddingVertical: spacing.md,

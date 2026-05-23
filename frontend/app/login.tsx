@@ -121,7 +121,7 @@ const s = StyleSheet.create({
     fontFamily: "Inter_400Regular",
   },
   error: {
-    color: colors.crimson,
+    color: colors.error,
     fontFamily: "Inter_500Medium",
     fontSize: 13,
     letterSpacing: 0.5,

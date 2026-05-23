@@ -69,6 +69,14 @@ export type User = {
   birth_place?: string | null;
   birth_lat?: number | null;
   birth_lng?: number | null;
+  tarot_credits?: number;
+  tarot_credits_reset_at?: string | null;
+};
+
+export type CreditsInfo = {
+  credits: number | null;
+  reset_at: string | null;
+  is_premium: boolean;
 };
 
 export const api = {
@@ -112,4 +120,5 @@ export const api = {
     request<{ url: string; session_id: string }>("/stripe/checkout", { method: "POST" }),
   stripeSession: (id: string) =>
     request<{ payment_status: string; is_premium: boolean }>(`/stripe/session/${id}`),
+  credits: () => request<CreditsInfo>("/credits"),
 };

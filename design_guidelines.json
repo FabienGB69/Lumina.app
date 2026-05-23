@@ -1,39 +1,41 @@
 {
-  "project_name": "Echo",
+  "project_name": "Lumina",
   "domain": "Astrology & Tarot App",
   "theme": "DARK",
-  "archetype": "Swiss & High-Contrast (Archetype 4) / Jewel & Luxury (Archetype 5) Blend",
+  "archetype": "Feminine Mystique Premium — deep black, dark purple, powder pink, gold",
   "core_principles": [
-    "The stars don't care about your feelings. The design shouldn't either.",
-    "True black backgrounds. High contrast. Zero soft shadows or glowing gradients.",
-    "Generous negative space to isolate content and create visual tension.",
-    "Typography as the primary visual driver. Big, tight, and commanding.",
-    "1px stark borders to separate sections, avoiding cards where possible."
+    "Deep black backgrounds with subtle purple depth. Feminine, premium, Instagramable.",
+    "Gold borders on cards. Violet ambient glow behind hero elements.",
+    "Generous negative space to let content breathe — nothing competes with the card.",
+    "Cormorant Garamond as the soul of the app. Inter for clarity.",
+    "Soft gradients are welcome on cards. Stark edges on interactive elements."
   ],
   "colors": {
     "background": {
-      "default": "#000000",
-      "surface": "#121212",
-      "surface_elevated": "#1A1A1A"
+      "default": "#0A0A0A",
+      "surface": "#0F0A18",
+      "surface_elevated": "#1A1028"
     },
     "border": {
-      "default": "#262626",
-      "focus": "#F4F0E6"
+      "default": "#2A1F35",
+      "focus": "#D4AF37"
     },
     "text": {
       "primary": "#F4F0E6",
-      "secondary": "#A3A3A3",
-      "tertiary": "#666666",
-      "inverse": "#000000"
+      "secondary": "#9B8EA8",
+      "tertiary": "#5C5065",
+      "inverse": "#0A0A0A"
     },
     "accents": {
-      "primary": "#F4F0E6",
-      "crimson": "#A91D1D",
-      "gold": "#C5A059"
+      "purple": "#4B0082",
+      "purple_light": "#6B2D8C",
+      "pink": "#E8B4C8",
+      "gold": "#D4AF37",
+      "gold_light": "#E8C84A"
     },
     "status": {
-      "error": "#A91D1D",
-      "success": "#C5A059"
+      "error": "#C44569",
+      "success": "#D4AF37"
     }
   },
   "typography": {

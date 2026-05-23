@@ -1,7 +1,6 @@
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
-  ActivityIndicator,
   Modal,
   Pressable,
   ScrollView,
@@ -11,17 +10,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import Animated, {
-  Easing,
-  interpolate,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../src/api";
 import { useAuth } from "../../src/auth";
-import { TarotCardBack, TarotCardVisual } from "../../src/TarotCard";
+import { useCreditsStore } from "../../src/stores/creditsStore";
+import { FlippableTarotCard, TarotCardBack } from "../../src/TarotCard";
 import { getCardById, useDeck } from "../../src/deck";
 import { colors, spacing, text } from "../../src/theme";
 
@@ -31,28 +24,12 @@ const CARD_H = 360;
 export default function TarotScreen() {
   const { user } = useAuth();
   const deck = useDeck();
+  const { decrement: decrementCredits } = useCreditsStore();
   const [question, setQuestion] = useState("");
   const [drawing, setDrawing] = useState(false);
   const [reading, setReading] = useState<any>(null);
   const [showReading, setShowReading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const rotation = useSharedValue(0);
-
-  const frontStyle = useAnimatedStyle(() => ({
-    transform: [
-      { perspective: 1000 },
-      { rotateY: `${interpolate(rotation.value, [0, 180], [180, 360])}deg` },
-    ],
-    opacity: rotation.value > 90 ? 1 : 0,
-  }));
-  const backStyle = useAnimatedStyle(() => ({
-    transform: [{ perspective: 1000 }, { rotateY: `${rotation.value}deg` }],
-    opacity: rotation.value > 90 ? 0 : 1,
-  }));
-
-  useEffect(() => {
-    if (!showReading) rotation.value = 0;
-  }, [showReading, rotation]);
 
   const draw = async () => {
     setError(null);
@@ -61,13 +38,7 @@ export default function TarotScreen() {
     try {
       const r = await api.tarotDraw(question || undefined);
       setReading(r);
-      // start flip after slight delay so back is visible
-      setTimeout(() => {
-        rotation.value = withTiming(180, {
-          duration: 700,
-          easing: Easing.inOut(Easing.ease),
-        });
-      }, 600);
+      decrementCredits();
     } catch (e: any) {
       setError(e.message || "Could not draw");
       if (e.status === 402) {
@@ -149,22 +120,13 @@ export default function TarotScreen() {
             </Pressable>
 
             <View style={s.flipWrap}>
-              <Animated.View style={[s.absolute, backStyle]}>
-                <TarotCardBack width={CARD_W} height={CARD_H} />
-              </Animated.View>
-              {cardMeta && (
-                <Animated.View style={[s.absolute, frontStyle]}>
-                  <TarotCardVisual
-                    card={cardMeta}
-                    reversed={reading?.reversed}
-                    width={CARD_W}
-                    height={CARD_H}
-                  />
-                </Animated.View>
-              )}
-              {!cardMeta && drawing ? (
-                <ActivityIndicator color={colors.textPrimary} />
-              ) : null}
+              <FlippableTarotCard
+                card={cardMeta}
+                reversed={reading?.reversed}
+                flipped={showReading && !drawing && !!cardMeta}
+                width={CARD_W}
+                height={CARD_H}
+              />
             </View>
 
             {reading && cardMeta ? (
@@ -208,9 +170,10 @@ const s = StyleSheet.create({
   },
   primaryBtn: {
     marginHorizontal: spacing.lg,
-    backgroundColor: colors.textPrimary,
+    backgroundColor: colors.gold,
     paddingVertical: spacing.md,
     alignItems: "center",
+    borderRadius: 2,
   },
   primaryBtnText: {
     color: colors.textInverse,
@@ -220,7 +183,7 @@ const s = StyleSheet.create({
   },
   freeNote: { textAlign: "center", marginTop: spacing.md, fontSize: 12 },
   error: {
-    color: colors.crimson,
+    color: colors.error,
     marginTop: spacing.md,
     fontFamily: "Inter_500Medium",
     textAlign: "center",
@@ -235,16 +198,6 @@ const s = StyleSheet.create({
     height: CARD_H,
     alignSelf: "center",
     marginVertical: spacing.lg,
-  },
-  absolute: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: "center",
-    justifyContent: "center",
-    backfaceVisibility: "hidden",
   },
   readingScroll: { paddingTop: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
   readingTitle: { textAlign: "center" },
