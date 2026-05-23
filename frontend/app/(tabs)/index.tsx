@@ -40,7 +40,7 @@ function CreditPill() {
   return (
     <TouchableOpacity
       style={[s.pill, isEmpty && s.pillEmpty]}
-      onPress={() => router.push("/paywall")}
+      onPress={() => router.push("/subscription")}
       activeOpacity={0.8}
     >
       <Text style={[s.pillText, isEmpty && s.pillTextEmpty]}>
