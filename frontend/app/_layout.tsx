@@ -6,13 +6,21 @@ import {
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import { router, Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { StripeProvider } from "@stripe/stripe-react-native";
+import * as Notifications from "expo-notifications";
 import { AuthProvider } from "../src/auth";
 import { PaymentProvider } from "../src/payments/PaymentProvider";
+import {
+  addNotificationResponseListener,
+  registerPushToken,
+  requestNotificationPermission,
+  scheduleDailyReset,
+  scheduleStreakReminder,
+} from "../src/services/notifications";
 import { colors } from "../src/theme";
 
 const STRIPE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
@@ -35,6 +43,31 @@ export default function RootLayout() {
     Inter_500Medium,
     Inter_600SemiBold,
   });
+
+  const notifListenerRef = useRef<Notifications.Subscription | null>(null);
+
+  useEffect(() => {
+    if (!fontsLoaded) return;
+
+    const init = async () => {
+      const granted = await requestNotificationPermission();
+      if (!granted) return;
+
+      await scheduleDailyReset();
+      await scheduleStreakReminder();
+      await registerPushToken();
+    };
+
+    void init();
+
+    notifListenerRef.current = addNotificationResponseListener((screen) => {
+      router.push(screen as any);
+    });
+
+    return () => {
+      notifListenerRef.current?.remove();
+    };
+  }, [fontsLoaded]);
 
   if (!fontsLoaded) {
     return (

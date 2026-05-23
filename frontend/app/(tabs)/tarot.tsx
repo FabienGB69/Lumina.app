@@ -1,6 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -18,6 +18,7 @@ import { useCreditsStore } from "../../src/stores/creditsStore";
 import { FlippableTarotCard, TarotCardBack } from "../../src/TarotCard";
 import { getCardById, useDeck } from "../../src/deck";
 import { colors, fonts, spacing, text } from "../../src/theme";
+import { notifyCreditsExhausted } from "../../src/services/notifications";
 
 const CARD_W = 220;
 const CARD_H = 360;
@@ -40,6 +41,10 @@ export default function TarotScreen() {
       const r = await api.tarotDraw(question || undefined);
       setReading(r);
       decrementCredits();
+      // Schedule exhaustion nudge if this was the last credit
+      if (typeof credits === "number" && credits <= 1 && !isPremium) {
+        void notifyCreditsExhausted();
+      }
     } catch (e: any) {
       setError(e.message || "Could not draw");
       if (e.status === 402) {

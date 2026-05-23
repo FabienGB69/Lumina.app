@@ -121,4 +121,6 @@ export const api = {
   stripeSession: (id: string) =>
     request<{ payment_status: string; is_premium: boolean }>(`/stripe/session/${id}`),
   credits: () => request<CreditsInfo>("/credits"),
+  registerPushToken: (token: string) =>
+    request<{ ok: boolean }>("/push-token", { method: "POST", body: { token } }),
 };

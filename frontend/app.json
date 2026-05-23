@@ -16,7 +16,11 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#000"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "notification": {
+        "icon": "./assets/images/notification-icon.png",
+        "color": "#6B2D8C"
+      }
     },
     "web": {
       "bundler": "metro",
@@ -32,6 +36,14 @@
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#000"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#6B2D8C",
+          "sounds": []
         }
       ]
     ],

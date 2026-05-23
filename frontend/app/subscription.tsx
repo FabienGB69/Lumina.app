@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { PaymentButton } from "../src/components/PaymentButton";
 import { PlanKey } from "../src/payments/PaymentProvider";
 import { colors, fonts, spacing, text } from "../src/theme";
+import { notifySubscriptionSuccess } from "../src/services/notifications";
 
 // ---------------------------------------------------------------------------
 // Plan definitions
@@ -213,7 +214,10 @@ export default function SubscriptionScreen() {
                 ? `ACHETER 20 CRÉDITS · ${activePlan.price}`
                 : `COMMENCER MON ESSAI GRATUIT`
             }
-            onSuccess={() => router.replace("/(tabs)/profile")}
+            onSuccess={() => {
+              void notifySubscriptionSuccess();
+              router.replace("/(tabs)/profile");
+            }}
             onError={setPayError}
           />
         </View>
