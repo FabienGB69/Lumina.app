@@ -9,16 +9,17 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "icon": "./assets/images/icon.png"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#000"
+        "backgroundColor": "#4B0082"
       },
       "edgeToEdgeEnabled": true,
       "notification": {
-        "icon": "./assets/images/notification-icon.png",
+        "icon": "./assets/images/notification-icon-small.png",
         "color": "#6B2D8C"
       }
     },
@@ -35,7 +36,7 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#000"
+          "backgroundColor": "#0A0A0A"
         }
       ],
       [
