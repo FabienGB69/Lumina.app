@@ -2,7 +2,7 @@ import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -10,6 +10,15 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../src/api";
 import { useAuth } from "../../src/auth";
@@ -25,12 +34,67 @@ function todayLabel() {
     .toUpperCase();
 }
 
+// ---------------------------------------------------------------------------
+// Shimmer placeholder — animated gold/pink sweep for loading states
+// ---------------------------------------------------------------------------
+function ShimmerPlaceholder({ width = 280, height = 80 }: { width?: number; height?: number }) {
+  const translateX = useSharedValue(-width);
+
+  useEffect(() => {
+    translateX.value = -width;
+    translateX.value = withRepeat(
+      withTiming(width * 1.5, { duration: 1100 }),
+      -1,
+      true,
+    );
+  }, [width, translateX]);
+
+  const shimmerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  return (
+    <View style={[{ width, height, borderRadius: 6, overflow: "hidden", backgroundColor: colors.surface }]}>
+      <Animated.View style={[{ position: "absolute", top: 0, width: width * 0.6, height }, shimmerStyle]}>
+        <LinearGradient
+          colors={[
+            "transparent",
+            `rgba(212,175,55,0.15)`,
+            `rgba(232,180,200,0.10)`,
+            "transparent",
+          ]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={{ flex: 1 }}
+        />
+      </Animated.View>
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// CreditPill — animated scale pulse when credits change
+// ---------------------------------------------------------------------------
 function CreditPill() {
   const { credits, isPremium, fetch } = useCreditsStore();
+  const pillScale = useSharedValue(1);
 
   useEffect(() => {
     void fetch();
   }, [fetch]);
+
+  useEffect(() => {
+    if (credits !== null) {
+      pillScale.value = withSequence(
+        withSpring(1.12, { damping: 10 }),
+        withSpring(1, { damping: 12 }),
+      );
+    }
+  }, [credits, pillScale]);
+
+  const pillAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pillScale.value }],
+  }));
 
   if (isPremium) return null;
   if (credits === null) return null;
@@ -38,18 +102,43 @@ function CreditPill() {
   const isEmpty = credits === 0;
 
   return (
-    <TouchableOpacity
-      style={[s.pill, isEmpty && s.pillEmpty]}
-      onPress={() => router.push("/subscription")}
-      activeOpacity={0.8}
-    >
-      <Text style={[s.pillText, isEmpty && s.pillTextEmpty]}>
-        {isEmpty ? "NO CREDITS · UPGRADE" : `✦ ${credits} CREDIT${credits === 1 ? "" : "S"}`}
-      </Text>
-    </TouchableOpacity>
+    <Animated.View style={pillAnimStyle}>
+      <TouchableOpacity
+        style={[s.pill, isEmpty && s.pillEmpty]}
+        onPress={() => router.push("/subscription")}
+        activeOpacity={0.8}
+      >
+        <Text style={[s.pillText, isEmpty && s.pillTextEmpty]}>
+          {isEmpty ? "NO CREDITS · UPGRADE" : `✦ ${credits} CREDIT${credits === 1 ? "" : "S"}`}
+        </Text>
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 
+// ---------------------------------------------------------------------------
+// Animated section factory — shared translateY + opacity entry
+// ---------------------------------------------------------------------------
+function useEntryAnim(delayMs: number) {
+  const translateY = useSharedValue(28);
+  const opacity = useSharedValue(0);
+
+  const trigger = useCallback(() => {
+    translateY.value = withDelay(delayMs, withSpring(0, { damping: 20, stiffness: 100 }));
+    opacity.value = withDelay(delayMs, withTiming(1, { duration: 350 }));
+  }, [delayMs, translateY, opacity]);
+
+  const style = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+    opacity: opacity.value,
+  }));
+
+  return { style, trigger };
+}
+
+// ---------------------------------------------------------------------------
+// Today screen
+// ---------------------------------------------------------------------------
 export default function Today() {
   const { user } = useAuth();
   const deck = useDeck();
@@ -59,8 +148,24 @@ export default function Today() {
   const [loadingC, setLoadingC] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [btnPressed, setBtnPressed] = useState(false);
 
   const { fetch: fetchCredits } = useCreditsStore();
+
+  // Staggered entry animations
+  const header = useEntryAnim(0);
+  const horoscopeSection = useEntryAnim(120);
+  const cardSection = useEntryAnim(260);
+  const ctaSection = useEntryAnim(380);
+
+  // Button glow on press
+  const btnGlowOpacity = useSharedValue(0);
+  const btnGlowStyle = useAnimatedStyle(() => ({
+    shadowColor: colors.gold,
+    shadowOpacity: btnGlowOpacity.value,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 0 },
+  }));
 
   const load = useCallback(async () => {
     setError(null);
@@ -78,6 +183,11 @@ export default function Today() {
 
   useEffect(() => {
     void load();
+    // Trigger all staggered entries on mount
+    header.trigger();
+    horoscopeSection.trigger();
+    cardSection.trigger();
+    ctaSection.trigger();
   }, [load]);
 
   const onRefresh = async () => {
@@ -96,7 +206,8 @@ export default function Today() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} />
         }
       >
-        <View style={s.header}>
+        {/* Header */}
+        <Animated.View style={[s.header, header.style]}>
           <View style={s.headerRow}>
             <View>
               <Text style={text.label}>{todayLabel()}</Text>
@@ -104,12 +215,19 @@ export default function Today() {
             </View>
             <CreditPill />
           </View>
-        </View>
+        </Animated.View>
 
-        <View style={s.section}>
+        {/* Horoscope section */}
+        <Animated.View style={[s.section, horoscopeSection.style]}>
           <Text style={text.label}>Today&apos;s horoscope</Text>
           {loadingH ? (
-            <ActivityIndicator color={colors.gold} style={{ marginTop: spacing.lg }} />
+            <View style={{ marginTop: spacing.lg }}>
+              <ShimmerPlaceholder height={22} />
+              <View style={{ height: spacing.sm }} />
+              <ShimmerPlaceholder height={22} width={220} />
+              <View style={{ height: spacing.sm }} />
+              <ShimmerPlaceholder height={22} width={180} />
+            </View>
           ) : error && !horoscope ? (
             <Text style={s.error}>{error}</Text>
           ) : (
@@ -117,20 +235,28 @@ export default function Today() {
               {horoscope}
             </Text>
           )}
-        </View>
+        </Animated.View>
 
         <View style={s.divider} />
 
-        <View style={s.section}>
+        {/* Daily card section */}
+        <Animated.View style={[s.section, cardSection.style]}>
           <Text style={text.label}>Daily pull</Text>
           {loadingC ? (
-            <ActivityIndicator color={colors.gold} style={{ marginTop: spacing.lg }} />
+            <View style={[s.cardWrap, { gap: spacing.md }]}>
+              <ShimmerPlaceholder width={220} height={360} />
+            </View>
           ) : cardMeta ? (
             <View testID="home-tarot-card" style={s.cardWrap}>
-              <View style={s.glowWrap}>
+              {/* Layered ambient glow — more dramatic double gradient */}
+              <View style={s.glowWrap} pointerEvents="none">
                 <LinearGradient
-                  colors={["#4B0082", "transparent"]}
-                  style={s.ambientGlow}
+                  colors={["rgba(75,0,130,0.12)", "transparent"]}
+                  style={s.ambientGlowOuter}
+                />
+                <LinearGradient
+                  colors={["rgba(107,45,140,0.18)", "transparent"]}
+                  style={s.ambientGlowInner}
                 />
               </View>
               <TarotCardVisual card={cardMeta} reversed={dailyCard.reversed} />
@@ -143,15 +269,24 @@ export default function Today() {
               </View>
             </View>
           ) : null}
-        </View>
+        </Animated.View>
 
-        <TouchableOpacity
-          testID="home-go-tarot"
-          style={s.ghostBtn}
-          onPress={() => router.push("/(tabs)/tarot")}
-        >
-          <Text style={s.ghostBtnText}>DRAW ANOTHER CARD →</Text>
-        </TouchableOpacity>
+        {/* CTA button with glow on press */}
+        <Animated.View style={[ctaSection.style, btnGlowStyle]}>
+          <Pressable
+            testID="home-go-tarot"
+            style={s.ghostBtn}
+            onPress={() => router.push("/(tabs)/tarot")}
+            onPressIn={() => {
+              btnGlowOpacity.value = withTiming(0.3, { duration: 120 });
+            }}
+            onPressOut={() => {
+              btnGlowOpacity.value = withTiming(0, { duration: 200 });
+            }}
+          >
+            <Text style={s.ghostBtnText}>DRAW ANOTHER CARD →</Text>
+          </Pressable>
+        </Animated.View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -191,7 +326,12 @@ const s = StyleSheet.create({
   section: { paddingHorizontal: spacing.lg, paddingVertical: spacing.lg, gap: spacing.md },
   divider: { height: 1, backgroundColor: colors.border, marginHorizontal: spacing.lg },
   horoscope: { lineHeight: 30, fontSize: 19 },
-  cardWrap: { alignItems: "center", gap: spacing.lg, paddingVertical: spacing.md, position: "relative" },
+  cardWrap: {
+    alignItems: "center",
+    gap: spacing.lg,
+    paddingVertical: spacing.xl,
+    position: "relative",
+  },
   cardMeta: { gap: spacing.sm, paddingHorizontal: spacing.md, alignItems: "center" },
   interpretation: { textAlign: "center", lineHeight: 24, color: colors.textSecondary },
   glowWrap: {
@@ -202,13 +342,18 @@ const s = StyleSheet.create({
     bottom: 0,
     alignItems: "center",
     justifyContent: "center",
-    pointerEvents: "none",
   },
-  ambientGlow: {
-    width: 280,
-    height: 280,
+  ambientGlowOuter: {
+    position: "absolute",
+    width: 340,
+    height: 340,
     borderRadius: 999,
-    opacity: 0.18,
+  },
+  ambientGlowInner: {
+    position: "absolute",
+    width: 200,
+    height: 200,
+    borderRadius: 999,
   },
   error: { color: colors.error, marginTop: spacing.md, fontFamily: "Inter_500Medium" },
   ghostBtn: {
