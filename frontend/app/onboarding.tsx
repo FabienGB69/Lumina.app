@@ -260,7 +260,7 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  error: { color: colors.crimson, fontFamily: "Inter_500Medium" },
+  error: { color: colors.error, fontFamily: "Inter_500Medium" },
   footer: { flexDirection: "row", padding: spacing.lg, gap: spacing.md },
   primaryBtn: {
     flex: 1,

@@ -1,4 +1,5 @@
 import { router } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -75,7 +76,7 @@ export default function Today() {
         <View style={s.section}>
           <Text style={text.label}>Today&apos;s horoscope</Text>
           {loadingH ? (
-            <ActivityIndicator color={colors.textPrimary} style={{ marginTop: spacing.lg }} />
+            <ActivityIndicator color={colors.gold} style={{ marginTop: spacing.lg }} />
           ) : error && !horoscope ? (
             <Text style={s.error}>{error}</Text>
           ) : (
@@ -90,9 +91,15 @@ export default function Today() {
         <View style={s.section}>
           <Text style={text.label}>Daily pull</Text>
           {loadingC ? (
-            <ActivityIndicator color={colors.textPrimary} style={{ marginTop: spacing.lg }} />
+            <ActivityIndicator color={colors.gold} style={{ marginTop: spacing.lg }} />
           ) : cardMeta ? (
             <View testID="home-tarot-card" style={s.cardWrap}>
+              <View style={s.glowWrap}>
+                <LinearGradient
+                  colors={["#4B0082", "transparent"]}
+                  style={s.ambientGlow}
+                />
+              </View>
               <TarotCardVisual card={cardMeta} reversed={dailyCard.reversed} />
               <View style={s.cardMeta}>
                 <Text style={[text.h3, { textAlign: "center" }]}>
@@ -124,10 +131,26 @@ const s = StyleSheet.create({
   section: { paddingHorizontal: spacing.lg, paddingVertical: spacing.lg, gap: spacing.md },
   divider: { height: 1, backgroundColor: colors.border, marginHorizontal: spacing.lg },
   horoscope: { lineHeight: 30, fontSize: 19 },
-  cardWrap: { alignItems: "center", gap: spacing.lg, paddingVertical: spacing.md },
+  cardWrap: { alignItems: "center", gap: spacing.lg, paddingVertical: spacing.md, position: "relative" },
   cardMeta: { gap: spacing.sm, paddingHorizontal: spacing.md, alignItems: "center" },
   interpretation: { textAlign: "center", lineHeight: 24, color: colors.textSecondary },
-  error: { color: colors.crimson, marginTop: spacing.md, fontFamily: "Inter_500Medium" },
+  glowWrap: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    pointerEvents: "none",
+  },
+  ambientGlow: {
+    width: 280,
+    height: 280,
+    borderRadius: 999,
+    opacity: 0.18,
+  },
+  error: { color: colors.error, marginTop: spacing.md, fontFamily: "Inter_500Medium" },
   ghostBtn: {
     marginHorizontal: spacing.lg,
     marginTop: spacing.md,
@@ -137,7 +160,7 @@ const s = StyleSheet.create({
     alignItems: "center",
   },
   ghostBtnText: {
-    color: colors.textPrimary,
+    color: colors.gold,
     fontFamily: "Inter_600SemiBold",
     fontSize: 13,
     letterSpacing: 2,

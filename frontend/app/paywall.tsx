@@ -151,7 +151,7 @@ const s = StyleSheet.create({
     color: colors.textPrimary,
     letterSpacing: -1.5,
   },
-  error: { color: colors.crimson, fontFamily: "Inter_500Medium", textAlign: "center" },
+  error: { color: colors.error, fontFamily: "Inter_500Medium", textAlign: "center" },
   unlockBtn: {
     backgroundColor: colors.gold,
     paddingVertical: spacing.md,
