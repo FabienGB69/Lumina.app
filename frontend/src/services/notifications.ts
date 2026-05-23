@@ -1,6 +1,11 @@
 /**
  * Lumina push notification service.
  *
+ * Channels (Android):
+ *   lumina_daily      — daily credit reset + streak reminders (importance HIGH, violet light)
+ *   lumina_credits    — credits exhausted alert (importance HIGH, gold light)
+ *   lumina_promo      — subscription welcome + marketing (importance DEFAULT, no sound)
+ *
  * Local scheduled notifications run even when the app is closed.
  * Remote push token is registered with the backend for server-side delivery.
  */
@@ -10,7 +15,7 @@ import { Platform } from "react-native";
 import { api } from "../api";
 
 // ---------------------------------------------------------------------------
-// Global handler — shows notifications while app is in foreground
+// Global handler — shows banners while app is in foreground
 // ---------------------------------------------------------------------------
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -25,37 +30,59 @@ Notifications.setNotificationHandler({
 // ---------------------------------------------------------------------------
 // Channel IDs
 // ---------------------------------------------------------------------------
-const CHANNEL_DAILY = "lumina_daily";
-const CHANNEL_ALERTS = "lumina_alerts";
+export const CHANNEL_DAILY   = "lumina_daily";
+export const CHANNEL_CREDITS = "lumina_credits";
+export const CHANNEL_PROMO   = "lumina_promo";
 
 // ---------------------------------------------------------------------------
-// Android channel setup
+// Android channel setup — idempotent, safe to call on every launch
 // ---------------------------------------------------------------------------
-async function _ensureChannels() {
+export async function ensureNotificationChannels(): Promise<void> {
   if (Platform.OS !== "android") return;
+
   await Notifications.setNotificationChannelAsync(CHANNEL_DAILY, {
     name: "Tirage du jour",
-    importance: Notifications.AndroidImportance.DEFAULT,
+    description: "Rappels quotidiens et renouvellement de crédits",
+    importance: Notifications.AndroidImportance.HIGH,
     lightColor: "#6B2D8C",
-    vibrationPattern: [0, 250, 100, 250],
+    enableLights: true,
+    enableVibrate: true,
+    vibrationPattern: [0, 300, 150, 300],
     showBadge: false,
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
   });
-  await Notifications.setNotificationChannelAsync(CHANNEL_ALERTS, {
-    name: "Alertes Lumina",
+
+  await Notifications.setNotificationChannelAsync(CHANNEL_CREDITS, {
+    name: "Crédits",
+    description: "Alertes quand tes crédits sont épuisés",
     importance: Notifications.AndroidImportance.HIGH,
     lightColor: "#D4AF37",
-    vibrationPattern: [0, 350],
+    enableLights: true,
+    enableVibrate: true,
+    vibrationPattern: [0, 400],
     showBadge: true,
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+  });
+
+  await Notifications.setNotificationChannelAsync(CHANNEL_PROMO, {
+    name: "Offres & Abonnements",
+    description: "Messages de bienvenue et offres Lumina",
+    importance: Notifications.AndroidImportance.DEFAULT,
+    lightColor: "#E8B4C8",
+    enableLights: true,
+    enableVibrate: false,
+    showBadge: false,
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
   });
 }
 
 // ---------------------------------------------------------------------------
-// Permission request
+// Permission request — must be called after ensureNotificationChannels
 // ---------------------------------------------------------------------------
 export async function requestNotificationPermission(): Promise<boolean> {
   if (!Device.isDevice) return false;
 
-  await _ensureChannels();
+  await ensureNotificationChannels();
 
   const { status: existing } = await Notifications.getPermissionsAsync();
   if (existing === "granted") return true;
@@ -71,27 +98,21 @@ export async function requestNotificationPermission(): Promise<boolean> {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Internal helper — injects Android channel + accent colour
 // ---------------------------------------------------------------------------
-function _androidProps(channelId: string) {
+function _android(channelId: string, color = "#6B2D8C") {
   return Platform.OS === "android"
-    ? {
-        channelId,
-        color: "#6B2D8C",
-        smallIcon: "notification_icon",
-      }
+    ? { channelId, color, smallIcon: "notification_icon" }
     : {};
 }
 
 // ---------------------------------------------------------------------------
-// Daily credit reset notification — scheduled at 9:00 local time every day
+// Daily credit reset — scheduled at 09:00 local time, repeating
 // ---------------------------------------------------------------------------
-const DAILY_NOTIF_ID_KEY = "lumina_daily_notif_id";
-
-export async function scheduleDailyReset() {
-  // Cancel any previously scheduled daily notification
-  const existing = await Notifications.getAllScheduledNotificationsAsync();
-  for (const n of existing) {
+export async function scheduleDailyReset(): Promise<void> {
+  // Cancel any existing daily reset to avoid duplicates
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  for (const n of scheduled) {
     if ((n.content.data as any)?.type === "daily_reset") {
       await Notifications.cancelScheduledNotificationAsync(n.identifier);
     }
@@ -102,7 +123,7 @@ export async function scheduleDailyReset() {
       title: "Lumina ✦",
       body: "Tes 3 crédits ont été renouvelés. Les cartes t'attendent.",
       data: { type: "daily_reset", screen: "/(tabs)/tarot" },
-      ..._androidProps(CHANNEL_DAILY),
+      ..._android(CHANNEL_DAILY),
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
@@ -114,42 +135,11 @@ export async function scheduleDailyReset() {
 }
 
 // ---------------------------------------------------------------------------
-// Credits exhausted notification — sent immediately (local)
+// Streak reminder — reschedule every app open so it resets the 48h clock
 // ---------------------------------------------------------------------------
-export async function notifyCreditsExhausted() {
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: "Lumina ✦",
-      body: "Les cartes ont encore des choses à te dire… Reviens demain ou passe en Lumina Glow.",
-      data: { type: "credits_exhausted", screen: "/subscription" },
-      ..._androidProps(CHANNEL_ALERTS),
-    },
-    trigger: null, // immediate
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Welcome after subscription — sent immediately (local)
-// ---------------------------------------------------------------------------
-export async function notifySubscriptionSuccess() {
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: "Lumina ✦",
-      body: "Bienvenue dans Lumina Glow ✨ Profite de tes tirages illimités.",
-      data: { type: "subscription_success", screen: "/(tabs)" },
-      ..._androidProps(CHANNEL_ALERTS),
-    },
-    trigger: null,
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Streak reminder — scheduled 48h after last open (call on every app open,
-// cancel+reschedule so it resets the clock each time)
-// ---------------------------------------------------------------------------
-export async function scheduleStreakReminder() {
-  const existing = await Notifications.getAllScheduledNotificationsAsync();
-  for (const n of existing) {
+export async function scheduleStreakReminder(): Promise<void> {
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  for (const n of scheduled) {
     if ((n.content.data as any)?.type === "streak_reminder") {
       await Notifications.cancelScheduledNotificationAsync(n.identifier);
     }
@@ -160,7 +150,7 @@ export async function scheduleStreakReminder() {
       title: "Lumina ✦",
       body: "Ça fait deux jours. Les cartes n'ont pas oublié. Toi ?",
       data: { type: "streak_reminder", screen: "/(tabs)/tarot" },
-      ..._androidProps(CHANNEL_DAILY),
+      ..._android(CHANNEL_DAILY),
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
@@ -171,9 +161,39 @@ export async function scheduleStreakReminder() {
 }
 
 // ---------------------------------------------------------------------------
-// Register Expo push token with backend
+// Credits exhausted — immediate local notification
 // ---------------------------------------------------------------------------
-export async function registerPushToken() {
+export async function notifyCreditsExhausted(): Promise<void> {
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: "Lumina ✦",
+      body: "Les cartes ont encore des choses à te dire… Reviens demain ou passe en Lumina Glow.",
+      data: { type: "credits_exhausted", screen: "/subscription" },
+      ..._android(CHANNEL_CREDITS, "#D4AF37"),
+    },
+    trigger: null,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Subscription welcome — immediate local notification (promo channel)
+// ---------------------------------------------------------------------------
+export async function notifySubscriptionSuccess(): Promise<void> {
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: "Lumina ✦",
+      body: "Bienvenue dans Lumina Glow ✨ Profite de tes tirages illimités.",
+      data: { type: "subscription_success", screen: "/(tabs)" },
+      ..._android(CHANNEL_PROMO, "#E8B4C8"),
+    },
+    trigger: null,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Register Expo push token with backend (best-effort, non-fatal)
+// ---------------------------------------------------------------------------
+export async function registerPushToken(): Promise<void> {
   if (!Device.isDevice) return;
 
   const { status } = await Notifications.getPermissionsAsync();
@@ -183,12 +203,12 @@ export async function registerPushToken() {
     const tokenData = await Notifications.getExpoPushTokenAsync();
     await api.registerPushToken(tokenData.data);
   } catch {
-    // Non-fatal — push delivery is best-effort
+    // Push delivery is best-effort; network or token errors don't block the app
   }
 }
 
 // ---------------------------------------------------------------------------
-// Navigation handler — call once at app root to handle taps on notifications
+// Navigation on notification tap — wire into root layout
 // ---------------------------------------------------------------------------
 export function addNotificationResponseListener(
   navigate: (screen: string) => void,

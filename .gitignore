@@ -87,3 +87,6 @@ android-sdk/
 credentials.json
 *.key
 .credentials
+google-services-key.json
+GoogleService-Info.plist
+frontend/.expo/
