@@ -1,0 +1,40 @@
+{
+  "projectName": "Lumina.app",
+  "skills": {
+    "directory": ".claude/skills"
+  },
+  "agents": {
+    "sam": {
+      "role": "Senior Frontend Developer",
+      "focus": ["frontend/", "expo", "animations", "screens", "navigation"],
+      "model": "claude-sonnet-4-6"
+    },
+    "max": {
+      "role": "CTO",
+      "focus": ["architecture", "tech-debt", "cross-cutting", "decisions"],
+      "model": "claude-sonnet-4-6"
+    },
+    "nyx": {
+      "role": "Security & Bug Hunter",
+      "focus": ["auth", "jwt", "paywall", "validation", "exploits"],
+      "model": "claude-sonnet-4-6"
+    },
+    "alex": {
+      "role": "Growth Marketer",
+      "focus": ["conversion", "paywall", "onboarding", "copy"],
+      "model": "claude-sonnet-4-6"
+    },
+    "leo": {
+      "role": "Senior Backend Developer",
+      "focus": ["backend/", "fastapi", "mongodb", "ephemeris", "llm"],
+      "model": "claude-sonnet-4-6"
+    }
+  },
+  "memory": {
+    "agentmemory": {
+      "api": "http://localhost:3111",
+      "viewer": "http://localhost:3113",
+      "streams": "ws://localhost:3112"
+    }
+  }
+}
