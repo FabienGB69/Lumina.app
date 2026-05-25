@@ -1,33 +1,73 @@
 {
   "projectName": "Lumina.app",
   "skills": {
-    "directory": ".claude/skills"
+    "directory": ".claude/skills",
+    "available": [
+      "claude-mem",
+      "planning-with-files",
+      "MemPalace",
+      "darwin",
+      "caveman",
+      "agent-orchestration"
+    ]
+  },
+  "agentOrchestration": {
+    "tiers": {
+      "haiku": {
+        "model": "claude-haiku-4-5-20251001",
+        "use": "Mechanical tasks — config edits, boilerplate, renaming, search, changelog",
+        "costMultiplier": 1
+      },
+      "sonnet": {
+        "model": "claude-sonnet-4-6",
+        "use": "Standard coding — features, bug fixes, tests, SDK integration (1-3 files)",
+        "costMultiplier": 5
+      },
+      "opus": {
+        "model": "claude-opus-4-7",
+        "use": "Complex reasoning — architecture, security, cross-cutting refactor, ambiguous specs",
+        "costMultiplier": 15
+      }
+    },
+    "routingRules": {
+      "haiku": "rote/mechanical, single file, no design judgment, < 50 LOC",
+      "sonnet": "standard feature, 1-3 files, clear spec, medium complexity",
+      "opus": "ambiguous OR cross-system design OR security/perf-critical OR > 5 files"
+    },
+    "defaultParallelism": true
   },
   "agents": {
     "sam": {
       "role": "Senior Frontend Developer",
       "focus": ["frontend/", "expo", "animations", "screens", "navigation"],
-      "model": "claude-sonnet-4-6"
+      "defaultTier": "sonnet",
+      "upgradeTo": "opus",
+      "upgradeWhen": "complex animation architecture or cross-screen state design"
     },
     "max": {
       "role": "CTO",
       "focus": ["architecture", "tech-debt", "cross-cutting", "decisions"],
-      "model": "claude-sonnet-4-6"
+      "defaultTier": "opus"
     },
     "nyx": {
       "role": "Security & Bug Hunter",
       "focus": ["auth", "jwt", "paywall", "validation", "exploits"],
-      "model": "claude-sonnet-4-6"
+      "defaultTier": "opus",
+      "note": "Security always runs on Opus — never cut corners here"
     },
     "alex": {
       "role": "Growth Marketer",
       "focus": ["conversion", "paywall", "onboarding", "copy"],
-      "model": "claude-sonnet-4-6"
+      "defaultTier": "sonnet",
+      "downgradeTo": "haiku",
+      "downgradeWhen": "copy edits, text changes only"
     },
     "leo": {
       "role": "Senior Backend Developer",
       "focus": ["backend/", "fastapi", "mongodb", "ephemeris", "llm"],
-      "model": "claude-sonnet-4-6"
+      "defaultTier": "sonnet",
+      "upgradeTo": "opus",
+      "upgradeWhen": "database schema changes, auth flows, or LLM prompt architecture"
     }
   },
   "memory": {
