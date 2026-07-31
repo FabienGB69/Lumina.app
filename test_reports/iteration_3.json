@@ -1,0 +1,53 @@
+{
+  "summary": "Iteration 3 — pure backend refactor regression test. Monolithic server.py (773 LOC) split into server.py (85 LOC) + core/{config,db,security,deps} + models.py + services/charts.py + routes/{auth,onboarding,tarot,friends,stripe}.py. Ran full /app/backend/tests/test_echo_api.py: 36 passed / 1 skipped / 0 failed (identical to iteration_2, ~34.5s). No regressions. Import graph is clean (uvicorn boots via supervisor without ImportError; backend PID stable). All 19 previously-working endpoints still resolve to correct handlers per OpenAPI: /api/ (root), /api/auth/{register,login,me,session,logout}, /api/onboarding/birth-data, /api/natal-chart, /api/horoscope/today, /api/tarot/{deck,daily,draw}, /api/journal, /api/friends, /api/friends/{add,compatibility}, /api/stripe/{checkout,session/{id},webhook}. Stripe webhook (moved from @app decorator to app.add_api_route in server.py) is reachable at POST /api/stripe/webhook and returns 400 on bad JSON payload as specified.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/stripe/webhook",
+        "issue": "Well-formed JSON without required Stripe event fields (e.g. body '{}') returns 500 instead of 400. The try/except in routes/stripe.py:111-116 only wraps stripe.Event.construct_from, but the subsequent event['type'] access on the constructed empty Event raises KeyError uncaught. Pre-existing pattern (not introduced by refactor) — bad-JSON case (400) still works per spec."
+      },
+      {
+        "endpoint": "GET /api/stripe/session/{session_id}",
+        "issue": "Still raises HTTPException(400) with raw stripe SDK exception text on retrieve failure (routes/stripe.py:80-82) instead of a 503 mirroring /stripe/checkout. Carried over from iteration_2 — same behavior after refactor."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_echo_api.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "(Optional/hardening) Wrap the whole webhook body in one try/except so malformed-but-parseable payloads (e.g. '{}') also return 400 instead of 500. Move event['type']/event['data'] access inside the try block.",
+    "(Carry-over from iteration_2) Mirror the 503 wrapping in GET /api/stripe/session/{id} to match /stripe/checkout for consistency.",
+    "(Carry-over) Replace STRIPE_API_KEY placeholder 'sk_test_emergent' with a real sk_test_* key so test_61 can run instead of skip."
+  ],
+  "critical_code_review_comments": [
+    "server.py cleanly reduced from ~770 to 85 LOC — passes the 700 LOC guideline flagged in iteration_2.",
+    "core/config.py loaded FIRST via `import core.config` at top of server.py — correct order so llm_service and stripe SDK see env keys.",
+    "core/db.py is single source of truth for Mongo client + collection handles; ensure_indexes() called on FastAPI startup event — idempotent.",
+    "routes/auth.py, onboarding.py, tarot.py, friends.py, stripe.py each expose a `router = APIRouter(tags=[...])` and are wired via api.include_router() — clean, no circular imports.",
+    "Stripe webhook mounted via app.add_api_route('/api/stripe/webhook', stripe_webhook, methods=['POST']) rather than via the /api APIRouter — path still lives under /api so ingress routing is unchanged. Verified reachable + returns 400 on bad payload.",
+    "core/deps.py get_current_user() correctly imports from .db and .security (relative imports inside package) while routes/* use absolute `from core.x import y` — no circular dependency because routes only import from core, never the reverse.",
+    "core/security.py encapsulates password hashing + JWT create/decode + now_utc/today_str — clean single-responsibility.",
+    "services/charts.py ensure_chart helper decouples natal chart caching from onboarding and natal-chart endpoints — good separation.",
+    "No _id leakage: every users_col/sessions_col/etc find_one uses projection {'_id': 0} — verified in routes/auth.py, routes/friends.py, core/deps.py.",
+    "Pydantic models remain in a single models.py — reasonable for current size."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "97% (36/37 passed, 1 skipped due to Stripe placeholder key — same as iteration_2, zero regressions from refactor)",
+    "frontend": "not_tested (backend-only run as requested)"
+  },
+  "seed_data_creation": "Fresh qa_a_<run>, qa_b_<run>, qa_lock_<run> users per run via UUID suffix. No test-data collision with previous iterations.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Post-refactor backend is stable and identical in behavior to iteration_2. Test suite /app/backend/tests/test_echo_api.py is the canonical regression suite (37 tests, ~35s). If the next iteration touches routes/*, core/* or models.py, re-run this suite. The two minor issues flagged (webhook 500 on empty-object payload; stripe/session/{id} 400-not-503) are pre-existing, not refactor regressions.",
+  "rca_of_issue": "N/A — no regressions from the refactor. Pass rate unchanged from iteration_2 (36/37, 1 skip, 0 failures). Import graph, route resolution, and webhook mounting all verified working."
+}
