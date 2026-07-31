@@ -673,10 +673,14 @@ async def create_checkout(current=Depends(get_current_user)):
 async def check_session(session_id: str, current=Depends(get_current_user)):
     """Polled by client after checkout to confirm subscription activation."""
     if not STRIPE_API_KEY:
-        raise HTTPException(500, "Stripe not configured")
+        raise HTTPException(503, "Payments not configured")
     try:
         sess = stripe.checkout.Session.retrieve(session_id)
+    except stripe.error.AuthenticationError:
+        logger.exception("stripe auth error on session retrieve")
+        raise HTTPException(503, "Payments not configured. Please contact support.")
     except Exception as e:
+        logger.exception("stripe session retrieve error")
         raise HTTPException(400, f"Session retrieval failed: {e}")
     payment_status = sess.get("payment_status")
     sub_id = sess.get("subscription")
