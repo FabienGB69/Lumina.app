@@ -90,6 +90,7 @@ async def compatibility(body: CompatIn, current=Depends(get_current_user)):
             friend_chart["summary"],
             current["username"],
             friend["username"],
+            lang=current.get("language") or "en",
         )
     except Exception as e:
         logger.exception("compat llm error")

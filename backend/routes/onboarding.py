@@ -68,7 +68,9 @@ async def horoscope_today(current=Depends(get_current_user)):
         return {"date": today, "text": existing["text"], "cached": True}
     chart_doc = await ensure_chart(current)
     try:
-        text = await daily_horoscope(chart_doc["summary"], today)
+        text = await daily_horoscope(
+            chart_doc["summary"], today, lang=current.get("language") or "en"
+        )
     except Exception as e:
         logger.exception("horoscope llm error")
         raise HTTPException(503, "Horoscope service temporarily unavailable") from e

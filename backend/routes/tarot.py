@@ -41,7 +41,11 @@ async def tarot_daily(current=Depends(get_current_user)):
     keywords = card["keywords_reversed"] if is_reversed else card["keywords_upright"]
     try:
         interpretation = await tarot_interpretation(
-            card["name"], keywords, chart_doc["summary"], reversed_=is_reversed
+            card["name"],
+            keywords,
+            chart_doc["summary"],
+            reversed_=is_reversed,
+            lang=current.get("language") or "en",
         )
     except Exception as e:
         logger.exception("tarot daily llm error")
@@ -89,6 +93,7 @@ async def tarot_draw(body: TarotDrawIn, current=Depends(get_current_user)):
             chart_doc["summary"],
             body.question,
             reversed_=is_reversed,
+            lang=current.get("language") or "en",
         )
     except Exception as e:
         logger.exception("tarot draw llm error")

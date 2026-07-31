@@ -28,6 +28,7 @@ from routes.onboarding import router as onboarding_router
 from routes.stripe import router as stripe_router
 from routes.stripe import stripe_webhook
 from routes.tarot import router as tarot_router
+from routes.users import router as users_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -47,6 +48,7 @@ async def root():
 
 
 api.include_router(auth_router)
+api.include_router(users_router)
 api.include_router(onboarding_router)
 api.include_router(tarot_router)
 api.include_router(friends_router)

@@ -28,11 +28,16 @@ class UserPublic(BaseModel):
     username: str
     is_premium: bool = False
     onboarded: bool = False
+    language: str = "en"
     birth_date: str | None = None
     birth_time: str | None = None
     birth_place: str | None = None
     birth_lat: float | None = None
     birth_lng: float | None = None
+
+
+class LanguageIn(BaseModel):
+    language: str = Field(min_length=2, max_length=8)
 
 
 class TokenOut(BaseModel):
@@ -84,6 +89,7 @@ def to_public(u: dict) -> UserPublic:
         username=u["username"],
         is_premium=u.get("is_premium", False),
         onboarded=u.get("onboarded", False),
+        language=u.get("language") or "en",
         birth_date=u.get("birth_date"),
         birth_time=u.get("birth_time"),
         birth_place=u.get("birth_place"),
