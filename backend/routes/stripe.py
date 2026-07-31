@@ -77,9 +77,15 @@ async def check_session(session_id: str, current=Depends(get_current_user)):
     except stripe.error.AuthenticationError:
         logger.exception("stripe auth error on session retrieve")
         raise HTTPException(503, "Payments not configured. Please contact support.")
-    except Exception as e:
+    except stripe.error.InvalidRequestError as e:
+        # e.g. session id not found / malformed — client error
+        raise HTTPException(404, "Session not found") from e
+    except stripe.error.StripeError:
         logger.exception("stripe session retrieve error")
-        raise HTTPException(400, f"Session retrieval failed: {e}")
+        raise HTTPException(503, "Payment service temporarily unavailable")
+    except Exception:
+        logger.exception("unexpected stripe session error")
+        raise HTTPException(503, "Payment service temporarily unavailable")
     payment_status = sess.get("payment_status")
     sub_id = sess.get("subscription")
     if sess.get("client_reference_id") and sess["client_reference_id"] != current["id"]:
@@ -114,7 +120,13 @@ async def stripe_webhook(
         )
     except Exception as e:
         raise HTTPException(400, f"Bad payload: {e}")
-    if event["type"] == "checkout.session.completed":
+
+    event_type = event.get("type") if hasattr(event, "get") else event["type"] if "type" in event else None
+    if not event_type:
+        # Well-formed JSON but not a Stripe event — reject cleanly instead of 500.
+        raise HTTPException(400, "Not a valid Stripe event")
+
+    if event_type == "checkout.session.completed":
         sess = event["data"]["object"]
         uid = sess.get("client_reference_id")
         if uid:
@@ -128,7 +140,7 @@ async def stripe_webhook(
                     }
                 },
             )
-    elif event["type"] in (
+    elif event_type in (
         "customer.subscription.deleted",
         "customer.subscription.updated",
     ):
