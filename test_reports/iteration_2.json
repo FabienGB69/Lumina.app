@@ -1,0 +1,52 @@
+{
+  "summary": "Iteration 2 backend re-test after main agent added (a) Emergent OAuth session exchange POST /api/auth/session, (b) POST /api/auth/logout, (c) dual-token get_current_user (session_token OR JWT), (d) wrapped LLM & Stripe exceptions as 503. Result: 36/37 passed, 1 skipped (Stripe session retrieval — env-blocked by placeholder key, not a code bug). All new endpoints behave per spec: /api/auth/session returns 401 'Invalid or expired session_id' for fake IDs, 422 for missing field, 422 for empty string; /api/auth/logout returns 200 {ok:true} both with JWT and without token (idempotent). /api/auth/me with bogus Bearer now returns 401 (regression check for dual-token lookup). All JWT regression paths (register/login/me/lockout/onboarding/natal-chart/tarot/friends/compat) still 200. LLM endpoints all returned 200 this run (no budget exhaustion). Stripe checkout correctly wraps auth error as 503 without leaking the API key value.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/auth/session (empty string session_id)",
+        "issue": "Returns 422 (Pydantic min_length=1) rather than 400 with the custom 'Missing session_id' message. This is acceptable per spec (400 OR 401 OR 422 allowed), and 422 is even more informative. Cosmetic — the server-side `if not sid: raise HTTPException(400,...)` branch on line 281-282 is now dead code because Field(min_length=1) intercepts first. Consider dropping the redundant check."
+      },
+      {
+        "endpoint": "GET /api/stripe/session/{id}",
+        "issue": "Still returns 500 raw (via HTTPException(500)) when STRIPE_API_KEY is empty, and returns raw stripe SDK error text on bad session_id. Since the checkout endpoint was upgraded to 503, mirror that here for consistency."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_echo_api.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "(Optional/cosmetic) In server.py google_session_exchange, remove the now-dead `if not sid: raise HTTPException(400,...)` branch — Pydantic Field(min_length=1) intercepts empty strings with 422 before the handler runs.",
+    "(Optional) Mirror the Stripe 503 wrapping in GET /api/stripe/session/{session_id} — it still raises HTTPException(500) when key missing and returns raw stripe SDK exception text on retrieval failure.",
+    "Still pending from iteration_1: replace STRIPE_API_KEY placeholder 'sk_test_emergent' with a real sk_test_* key so /api/stripe/checkout can return 200 with a real Session (currently correctly returns 503 without leaking key)."
+  ],
+  "critical_code_review_comments": [
+    "get_current_user() dual-token pattern (session_token lookup then jwt.decode) is clean and handles the bogus-token case correctly with jwt.InvalidTokenError → 401.",
+    "Session TTL: sessions_col has expireAfterSeconds=0 on expires_at index so Mongo will auto-purge expired session docs — good.",
+    "google_session_exchange upsert-by-email logic is correct and idempotent; suffix loop for username collision is fine but bounded by O(n) DB lookups. Acceptable at current scale.",
+    "logout endpoint is intentionally idempotent (no-op for JWT, deletes session_token row for Google) — matches the spec note in the review request.",
+    "server.py grew to ~770 lines with the new endpoints — now over the 700 LOC guideline. Consider splitting into routers/auth.py, routers/tarot.py, routers/friends.py, routers/stripe.py in the next iteration.",
+    "The httpx call to EMERGENT_SESSION_DATA_URL uses timeout=10s and wraps httpx.HTTPError → 503. Good defensive coding.",
+    "test_echo_api.py itself now has one unused import (`time`) inherited from iteration_1 — cosmetic."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_echo_api.py (added tests 07b, 08, 08b, 08c, 09, 09b for new auth endpoints; softened tests 20/21/31-34/55-57 to accept 503 for LLM-backed endpoints per spec; softened test 60/61 to accept 503 for Stripe with placeholder key)"
+  ],
+  "success_rate": {
+    "backend": "97% (36/37 passed, 1 skipped due to expected 503 on Stripe checkout with placeholder key; 0 failures)",
+    "frontend": "not_tested (backend-only run as requested)"
+  },
+  "seed_data_creation": "Same as iteration_1 — fresh qa_a_<run>, qa_b_<run>, qa_lock_<run> per run in MongoDB. No lingering artifacts from previous runs interfere (per-run UUIDs).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All backend endpoints behaving per spec after iteration_2 fixes. New auth endpoints (/api/auth/session, /api/auth/logout) fully covered. LLM budget was NOT exhausted this run — all Claude endpoints returned 200. Stripe still 503 with placeholder key (env issue, not code). If next iteration touches auth, re-run /app/backend/tests/test_echo_api.py — 37 tests, ~35s, all deterministic except LLM-backed which now gracefully degrade to 503.",
+  "rca_of_issue": "N/A this iteration — all previously-flagged issues from iteration_1 are resolved: (1) LLM exceptions now wrapped as 503 in /horoscope/today, /tarot/daily, /tarot/draw, /friends/compatibility; (2) Stripe AuthenticationError now wrapped as 503 in /stripe/checkout without leaking API key value; (3) New session/logout endpoints implemented per spec; (4) Dual-token get_current_user handles bogus tokens as 401. The only remaining 503s are env-blocked (Stripe placeholder key) and expected."
+}

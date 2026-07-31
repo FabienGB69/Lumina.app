@@ -18,6 +18,7 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
 import bcrypt  # noqa: E402
+import httpx  # noqa: E402
 import jwt  # noqa: E402
 import stripe  # noqa: E402
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request, status  # noqa: E402
@@ -48,6 +49,7 @@ logger = logging.getLogger("lumina")
 client = AsyncIOMotorClient(MONGO_URL)
 db = client[DB_NAME]
 users_col = db["users"]
+sessions_col = db["user_sessions"]
 charts_col = db["natal_charts"]
 horoscopes_col = db["horoscopes"]
 readings_col = db["readings"]
@@ -116,6 +118,13 @@ class CheckoutOut(BaseModel):
     session_id: str
 
 
+class SessionExchangeIn(BaseModel):
+    session_id: str = Field(min_length=1)
+
+
+EMERGENT_SESSION_DATA_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -167,8 +176,28 @@ async def get_current_user(
 ) -> dict:
     if not credentials:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Missing token")
+    token = credentials.credentials
+    # Try Google session token first (opaque, longer)
+    sess = await sessions_col.find_one({"session_token": token}, {"_id": 0})
+    if sess:
+        exp = sess.get("expires_at")
+        if isinstance(exp, str):
+            try:
+                exp = datetime.fromisoformat(exp)
+            except (ValueError, TypeError):
+                exp = None
+        if exp is not None:
+            if exp.tzinfo is None:
+                exp = exp.replace(tzinfo=timezone.utc)
+            if exp < now_utc():
+                raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session expired")
+        user = await users_col.find_one({"id": sess["user_id"]}, {"_id": 0})
+        if not user:
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found")
+        return user
+    # Fallback: legacy JWT
     try:
-        payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
     except jwt.ExpiredSignatureError:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Token expired")
     except jwt.InvalidTokenError:
@@ -239,6 +268,91 @@ async def login(body: LoginIn):
 @api.get("/auth/me", response_model=UserPublic)
 async def me(current=Depends(get_current_user)):
     return to_public(current)
+
+
+@api.post("/auth/session", response_model=TokenOut)
+async def google_session_exchange(body: SessionExchangeIn):
+    """Exchange a fresh Emergent OAuth session_id for a 7-day session_token.
+
+    Called by the frontend once, right after the OAuth redirect returns
+    with `#session_id=...` in the URL. Never call this with a session_token.
+    """
+    sid = body.session_id.strip()
+    if not sid:
+        raise HTTPException(400, "Missing session_id")
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client_http:
+            resp = await client_http.get(
+                EMERGENT_SESSION_DATA_URL,
+                headers={"X-Session-ID": sid},
+            )
+    except httpx.HTTPError as e:
+        logger.exception("emergent oauth network error")
+        raise HTTPException(503, "Auth provider unavailable") from e
+    if resp.status_code != 200:
+        raise HTTPException(401, "Invalid or expired session_id")
+    data = resp.json() or {}
+    email = (data.get("email") or "").lower().strip()
+    session_token = data.get("session_token")
+    name = data.get("name") or ""
+    if not email or not session_token:
+        raise HTTPException(401, "Malformed session data")
+
+    # Upsert user by email (reuse id if exists)
+    existing = await users_col.find_one({"email": email}, {"_id": 0})
+    if existing:
+        uid = existing["id"]
+        user = existing
+    else:
+        uid = f"user_{uuid.uuid4().hex[:12]}"
+        # Derive a unique-ish username from email
+        base = email.split("@", 1)[0].lower()
+        base = "".join(c for c in base if c.isalnum() or c == "_")[:20] or "seeker"
+        uname = base
+        suffix = 0
+        while await users_col.find_one({"username": uname}):
+            suffix += 1
+            uname = f"{base}{suffix}"
+        user = {
+            "id": uid,
+            "email": email,
+            "username": uname,
+            "name": name,
+            "auth_provider": "google",
+            "password_hash": None,
+            "is_premium": False,
+            "onboarded": False,
+            "failed_login_count": 0,
+            "lock_until": None,
+            "created_at": now_utc().isoformat(),
+        }
+        await users_col.insert_one(user)
+        user.pop("_id", None)
+
+    # Persist the session
+    expires_at = now_utc() + timedelta(days=7)
+    await sessions_col.update_one(
+        {"session_token": session_token},
+        {
+            "$set": {
+                "session_token": session_token,
+                "user_id": uid,
+                "expires_at": expires_at,
+                "created_at": now_utc(),
+            }
+        },
+        upsert=True,
+    )
+    return TokenOut(access_token=session_token, user=to_public(user))
+
+
+@api.post("/auth/logout")
+async def logout(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+):
+    if credentials:
+        await sessions_col.delete_one({"session_token": credentials.credentials})
+    return {"ok": True}
 
 
 # ---------------------------------------------------------------------------
@@ -634,6 +748,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+async def _startup_indexes():
+    try:
+        await users_col.create_index("email", unique=True)
+        await users_col.create_index("id", unique=True)
+        await users_col.create_index("username", unique=True, sparse=True)
+        await sessions_col.create_index("session_token", unique=True)
+        await sessions_col.create_index("user_id")
+        await sessions_col.create_index("expires_at", expireAfterSeconds=0)
+    except Exception:
+        logger.exception("index creation failed")
 
 
 @app.on_event("shutdown")

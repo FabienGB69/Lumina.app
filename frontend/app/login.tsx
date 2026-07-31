@@ -1,3 +1,4 @@
+import { LinearGradient } from "expo-linear-gradient";
 import { Link, router } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -11,15 +12,17 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LuminaLogo } from "../src/components/LuminaLogo";
 import { useAuth } from "../src/auth";
-import { colors, spacing, text } from "../src/theme";
+import { colors, gradients, radii, spacing, text } from "../src/theme";
 
 export default function Login() {
-  const { signIn } = useAuth();
+  const { signIn, signInWithGoogle } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [gLoading, setGLoading] = useState(false);
 
   const onSubmit = async () => {
     setError(null);
@@ -34,83 +37,134 @@ export default function Login() {
     }
   };
 
+  const onGoogle = async () => {
+    setError(null);
+    setGLoading(true);
+    try {
+      const u = await signInWithGoogle();
+      if (u) router.replace("/");
+    } catch (e: any) {
+      setError(e.message || "Google sign-in failed");
+    } finally {
+      setGLoading(false);
+    }
+  };
+
   return (
-    <SafeAreaView style={s.safe} edges={["top", "bottom"]}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={s.flex}
-      >
-        <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-          <Text style={text.label}>LUMINA</Text>
-          <Text style={[text.h1, s.title]}>Welcome{"\n"}back.</Text>
-          <Text style={[text.bodyDim, s.subtitle]}>
-            The universe noticed your absence.
-          </Text>
+    <View style={s.root}>
+      <LinearGradient colors={gradients.bg} style={StyleSheet.absoluteFill} />
+      <SafeAreaView style={s.safe} edges={["top", "bottom"]}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={s.flex}
+        >
+          <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+            <View style={s.header}>
+              <LuminaLogo size={110} />
+              <Text style={[text.label, s.brand]}>LUMINA</Text>
+              <Text style={[text.h1, s.title]}>Welcome{"\n"}back.</Text>
+              <Text style={[text.bodyDim, s.subtitle]}>
+                The universe noticed your absence.
+              </Text>
+            </View>
 
-          <View style={s.field}>
-            <Text style={text.label}>Email</Text>
-            <TextInput
-              testID="login-email-input"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoComplete="email"
-              placeholderTextColor={colors.textTertiary}
-              placeholder="you@somewhere.com"
-              style={s.input}
-            />
-          </View>
-          <View style={s.field}>
-            <Text style={text.label}>Password</Text>
-            <TextInput
-              testID="login-password-input"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              placeholderTextColor={colors.textTertiary}
-              placeholder="••••••••"
-              style={s.input}
-            />
-          </View>
+            <View style={s.field}>
+              <Text style={text.labelMuted}>Email</Text>
+              <TextInput
+                testID="login-email-input"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoComplete="email"
+                placeholderTextColor={colors.textTertiary}
+                placeholder="you@somewhere.com"
+                style={s.input}
+              />
+            </View>
+            <View style={s.field}>
+              <Text style={text.labelMuted}>Password</Text>
+              <TextInput
+                testID="login-password-input"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                placeholderTextColor={colors.textTertiary}
+                placeholder="••••••••"
+                style={s.input}
+              />
+            </View>
 
-          {error ? (
-            <Text testID="login-error" style={s.error}>
-              {error}
-            </Text>
-          ) : null}
+            {error ? (
+              <Text testID="login-error" style={s.error}>
+                {error}
+              </Text>
+            ) : null}
 
-          <TouchableOpacity
-            testID="login-submit-button"
-            style={[s.primaryBtn, loading && { opacity: 0.6 }]}
-            onPress={onSubmit}
-            disabled={loading}
-          >
-            <Text style={s.primaryBtnText}>{loading ? "ENTERING..." : "ENTER"}</Text>
-          </TouchableOpacity>
-
-          <Link href="/register" asChild>
-            <TouchableOpacity testID="login-to-register" style={s.linkBtn}>
-              <Text style={[text.bodyDim, { textAlign: "center" }]}>
-                No account?{" "}
-                <Text style={{ color: colors.textPrimary, textDecorationLine: "underline" }}>
-                  Make one
+            <TouchableOpacity
+              testID="login-submit-button"
+              activeOpacity={0.85}
+              onPress={onSubmit}
+              disabled={loading}
+              style={[s.primaryBtn, loading && { opacity: 0.6 }]}
+            >
+              <LinearGradient
+                colors={gradients.gold}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={s.primaryBtnGrad}
+              >
+                <Text style={s.primaryBtnText}>
+                  {loading ? "ENTERING..." : "ENTER"}
                 </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <View style={s.divider}>
+              <View style={s.dividerLine} />
+              <Text style={s.dividerText}>OR</Text>
+              <View style={s.dividerLine} />
+            </View>
+
+            <TouchableOpacity
+              testID="login-google-button"
+              activeOpacity={0.85}
+              onPress={onGoogle}
+              disabled={gLoading}
+              style={[s.googleBtn, gLoading && { opacity: 0.6 }]}
+            >
+              <Text style={s.googleG}>G</Text>
+              <Text style={s.googleBtnText}>
+                {gLoading ? "CONNECTING..." : "CONTINUE WITH GOOGLE"}
               </Text>
             </TouchableOpacity>
-          </Link>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+
+            <Link href="/register" asChild>
+              <TouchableOpacity testID="login-to-register" style={s.linkBtn}>
+                <Text style={[text.bodyDim, { textAlign: "center" }]}>
+                  No account?{" "}
+                  <Text style={{ color: colors.gold, textDecorationLine: "underline" }}>
+                    Make one
+                  </Text>
+                </Text>
+              </TouchableOpacity>
+            </Link>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
+  root: { flex: 1, backgroundColor: colors.bg },
+  safe: { flex: 1 },
   flex: { flex: 1 },
   scroll: { padding: spacing.lg, paddingTop: spacing.xl, gap: spacing.lg },
-  title: { marginTop: spacing.sm },
-  subtitle: { marginBottom: spacing.xl },
+  header: { alignItems: "center", gap: spacing.sm, marginBottom: spacing.md },
+  brand: { marginTop: spacing.md, letterSpacing: 8 },
+  title: { marginTop: spacing.sm, textAlign: "center" },
+  subtitle: { marginBottom: spacing.md, textAlign: "center" },
   field: { gap: spacing.sm },
   input: {
     borderBottomWidth: 1,
@@ -127,16 +181,64 @@ const s = StyleSheet.create({
     letterSpacing: 0.5,
   },
   primaryBtn: {
-    backgroundColor: colors.textPrimary,
+    marginTop: spacing.md,
+    borderRadius: radii.pill,
+    overflow: "hidden",
+    shadowColor: colors.gold,
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  primaryBtnGrad: {
     paddingVertical: spacing.md,
     alignItems: "center",
-    marginTop: spacing.md,
+    borderRadius: radii.pill,
   },
   primaryBtnText: {
-    color: colors.textInverse,
+    color: colors.textOnGold,
     fontFamily: "Inter_600SemiBold",
     fontSize: 14,
-    letterSpacing: 2,
+    letterSpacing: 3,
   },
   linkBtn: { paddingVertical: spacing.md },
+  divider: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: spacing.sm,
+    gap: spacing.md,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.border,
+  },
+  dividerText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 11,
+    letterSpacing: 3,
+    color: colors.textTertiary,
+  },
+  googleBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.md,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radii.pill,
+    paddingVertical: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  googleG: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 18,
+    color: colors.gold,
+  },
+  googleBtnText: {
+    color: colors.textPrimary,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
+    letterSpacing: 2,
+  },
 });

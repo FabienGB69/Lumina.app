@@ -84,6 +84,13 @@ export const api = {
       body: { email, password },
       auth: false,
     }),
+  googleSession: (session_id: string) =>
+    request<{ access_token: string; user: User }>("/auth/session", {
+      method: "POST",
+      body: { session_id },
+      auth: false,
+    }),
+  logout: () => request<{ ok: boolean }>("/auth/logout", { method: "POST" }),
   me: () => request<User>("/auth/me"),
   saveBirthData: (data: {
     birth_date: string;

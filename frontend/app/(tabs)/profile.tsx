@@ -2,6 +2,9 @@ import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  Linking,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,6 +14,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../src/api";
 import { useAuth } from "../../src/auth";
+import {
+  disableDailyReminder,
+  enableDailyReminder,
+  loadPrefs,
+  NotifPrefs,
+  updateReminderTime,
+} from "../../src/notifications";
 import { colors, spacing, text } from "../../src/theme";
 
 const PLANET_SYMBOLS: Record<string, string> = {
@@ -26,10 +36,25 @@ const PLANET_SYMBOLS: Record<string, string> = {
   Pluto: "♇",
 };
 
+const TIME_PRESETS: { hour: number; minute: number; label: string }[] = [
+  { hour: 7, minute: 0, label: "7:00" },
+  { hour: 8, minute: 0, label: "8:00" },
+  { hour: 9, minute: 30, label: "9:30" },
+  { hour: 12, minute: 0, label: "12:00" },
+  { hour: 18, minute: 0, label: "18:00" },
+  { hour: 21, minute: 0, label: "21:00" },
+];
+
+function fmt(h: number, m: number) {
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 export default function Profile() {
   const { user, signOut } = useAuth();
   const [chart, setChart] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [prefs, setPrefs] = useState<NotifPrefs>({ enabled: false, hour: 8, minute: 0 });
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -44,7 +69,57 @@ export default function Profile() {
 
   useEffect(() => {
     void load();
+    void (async () => {
+      const p = await loadPrefs();
+      setPrefs(p);
+    })();
   }, [load]);
+
+  const toggleReminder = async () => {
+    if (Platform.OS === "web") {
+      Alert.alert(
+        "Not on web",
+        "Daily reminders are a mobile-only feature. Open Lumina on your phone.",
+      );
+      return;
+    }
+    setBusy(true);
+    try {
+      if (prefs.enabled) {
+        await disableDailyReminder();
+        setPrefs({ ...prefs, enabled: false });
+      } else {
+        const res = await enableDailyReminder(prefs.hour, prefs.minute);
+        if (res.ok) {
+          setPrefs({ ...prefs, enabled: true });
+        } else if (!res.canAskAgain) {
+          Alert.alert(
+            "Permission denied",
+            "Enable notifications for Lumina from the system settings.",
+            [
+              { text: "Cancel", style: "cancel" },
+              { text: "Open Settings", onPress: () => Linking.openSettings() },
+            ],
+          );
+        } else {
+          Alert.alert("Permission needed", "Allow notifications to receive daily nudges.");
+        }
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const pickTime = async (hour: number, minute: number) => {
+    if (Platform.OS === "web") return;
+    setBusy(true);
+    try {
+      await updateReminderTime(hour, minute);
+      setPrefs({ ...prefs, hour, minute });
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
@@ -135,6 +210,64 @@ export default function Profile() {
 
         <View style={s.divider} />
 
+        <View style={s.section}>
+          <View style={s.reminderHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={text.label}>Daily reminder</Text>
+              <Text style={[text.bodyDim, { marginTop: spacing.xs, fontSize: 13 }]}>
+                A local nudge, once a day, to check your horoscope and pull a card.
+              </Text>
+            </View>
+            <TouchableOpacity
+              testID="profile-notif-toggle"
+              onPress={toggleReminder}
+              disabled={busy}
+              style={[
+                s.toggle,
+                prefs.enabled && s.toggleOn,
+                busy && { opacity: 0.5 },
+              ]}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: prefs.enabled }}
+            >
+              <View style={[s.toggleDot, prefs.enabled && s.toggleDotOn]} />
+            </TouchableOpacity>
+          </View>
+
+          {prefs.enabled ? (
+            <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
+              <Text style={[text.bodyDim, { fontSize: 13 }]}>
+                Currently: <Text style={{ color: colors.gold }}>{fmt(prefs.hour, prefs.minute)}</Text>
+              </Text>
+              <View style={s.timeRow}>
+                {TIME_PRESETS.map((p) => {
+                  const active = p.hour === prefs.hour && p.minute === prefs.minute;
+                  return (
+                    <TouchableOpacity
+                      key={p.label}
+                      testID={`profile-notif-time-${p.label}`}
+                      onPress={() => pickTime(p.hour, p.minute)}
+                      disabled={busy}
+                      style={[s.timeChip, active && s.timeChipActive]}
+                    >
+                      <Text
+                        style={[
+                          s.timeChipText,
+                          active && { color: colors.textOnGold ?? colors.bg },
+                        ]}
+                      >
+                        {p.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          ) : null}
+        </View>
+
+        <View style={s.divider} />
+
         <TouchableOpacity testID="profile-sign-out" style={s.signOut} onPress={signOut}>
           <Text style={s.signOutText}>SIGN OUT</Text>
         </TouchableOpacity>
@@ -208,5 +341,53 @@ const s = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
     fontSize: 12,
     letterSpacing: 2,
+  },
+  reminderHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  toggle: {
+    width: 52,
+    height: 30,
+    borderRadius: 999,
+    backgroundColor: colors.border,
+    padding: 3,
+    justifyContent: "center",
+  },
+  toggleOn: {
+    backgroundColor: colors.gold,
+  },
+  toggleDot: {
+    width: 24,
+    height: 24,
+    borderRadius: 999,
+    backgroundColor: colors.textPrimary,
+  },
+  toggleDotOn: {
+    backgroundColor: colors.bg,
+    transform: [{ translateX: 22 }],
+  },
+  timeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  timeChip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 999,
+  },
+  timeChipActive: {
+    backgroundColor: colors.gold,
+    borderColor: colors.gold,
+  },
+  timeChipText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 12,
+    letterSpacing: 1,
+    color: colors.textSecondary,
   },
 });

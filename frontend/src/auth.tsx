@@ -1,11 +1,18 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { Platform } from "react-native";
 import { api, loadToken, setToken, User } from "./api";
+import {
+  signInWithGoogle as googleSignIn,
+  tryConsumeNativeInitialUrl,
+  tryConsumeWebRedirect,
+} from "./googleAuth";
 
 type AuthCtx = {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, username: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<User | null>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
 };
@@ -17,19 +24,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
+        // Web: check URL for session_id first (redirect landing)
+        if (Platform.OS === "web") {
+          const redirected = await tryConsumeWebRedirect();
+          if (redirected?.user) {
+            if (!cancelled) setUser(redirected.user);
+            return;
+          }
+        } else {
+          // Native cold-start deep link
+          const cold = await tryConsumeNativeInitialUrl();
+          if (cold?.user) {
+            if (!cancelled) setUser(cold.user);
+            return;
+          }
+        }
+        // Existing session
         const t = await loadToken();
         if (t) {
           const u = await api.me();
-          setUser(u);
+          if (!cancelled) setUser(u);
         }
       } catch {
         await setToken(null);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -42,7 +69,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await setToken(access_token);
     setUser(u);
   };
+  const signInWithGoogleFn = async () => {
+    const res = await googleSignIn();
+    if (res?.user) {
+      setUser(res.user);
+      return res.user as User;
+    }
+    return null;
+  };
   const signOut = async () => {
+    try {
+      await api.logout();
+    } catch {
+      /* best-effort */
+    }
     await setToken(null);
     setUser(null);
   };
@@ -52,7 +92,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <Ctx.Provider value={{ user, loading, signIn, signUp, signOut, refresh }}>
+    <Ctx.Provider
+      value={{
+        user,
+        loading,
+        signIn,
+        signUp,
+        signInWithGoogle: signInWithGoogleFn,
+        signOut,
+        refresh,
+      }}
+    >
       {children}
     </Ctx.Provider>
   );

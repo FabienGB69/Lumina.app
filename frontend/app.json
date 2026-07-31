@@ -6,17 +6,24 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "lumina",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0B0418",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.emergent.luminanatal.k74dsl",
+      "infoPlist": {
+        "NSUserNotificationsUsageDescription": "Send a daily nudge for your horoscope and tarot pull."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#000"
+        "backgroundColor": "#3A1580"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.emergent.luminanatal.k74dsl",
+      "permissions": ["POST_NOTIFICATIONS", "SCHEDULE_EXACT_ALARM"]
     },
     "web": {
       "bundler": "metro",
@@ -29,9 +36,17 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "imageWidth": 220,
           "resizeMode": "contain",
-          "backgroundColor": "#000"
+          "backgroundColor": "#0B0418"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#F0C560",
+          "defaultChannel": "daily-reading"
         }
       ]
     ],

@@ -1,15 +1,31 @@
+// Lumina brand — deep royal violet + luminous gold, mystical dark theme.
 export const colors = {
-  bg: "#000000",
-  surface: "#121212",
-  surfaceElevated: "#1A1A1A",
-  border: "#262626",
-  borderFocus: "#F4F0E6",
-  textPrimary: "#F4F0E6",
-  textSecondary: "#A3A3A3",
-  textTertiary: "#666666",
-  textInverse: "#000000",
-  crimson: "#A91D1D",
-  gold: "#C5A059",
+  // Backgrounds — very deep violet-black, tuned to match the logo art
+  bg: "#0B0418",
+  bgElevated: "#140829",
+  surface: "#1A0E33",
+  surfaceElevated: "#22133F",
+  border: "#2E1B4D",
+  borderFocus: "#F0C560",
+
+  // Brand accents
+  violet: "#5B2FCB",        // primary brand violet (like the logo halo)
+  violetDeep: "#3A1580",    // deeper background violet
+  violetSoft: "#7A4EEB",    // hover/pressed / secondary
+  gold: "#F0C560",          // primary gold (letter L, stars)
+  goldDeep: "#C79A3E",      // pressed/deeper gold
+  goldSoft: "#F7DDA0",      // highlights
+
+  // Text
+  textPrimary: "#F4EDE0",   // parchment white
+  textSecondary: "#B8AACB",
+  textTertiary: "#6E5F86",
+  textInverse: "#0B0418",
+  textOnGold: "#0B0418",
+
+  // Feedback
+  crimson: "#C93A5B",
+  success: "#6BD4A3",
 };
 
 export const spacing = {
@@ -22,9 +38,18 @@ export const spacing = {
   xxxl: 64,
 };
 
+export const radii = {
+  sm: 6,
+  md: 12,
+  lg: 20,
+  xl: 28,
+  pill: 999,
+};
+
 export const fonts = {
   heading: "CormorantGaramond_400Regular",
   headingLight: "CormorantGaramond_300Light",
+  headingMedium: "CormorantGaramond_500Medium",
   body: "Inter_400Regular",
   bodyMedium: "Inter_500Medium",
   bodySemibold: "Inter_600SemiBold",
@@ -74,8 +99,24 @@ export const text = {
     fontFamily: fonts.bodySemibold,
     fontSize: 12,
     lineHeight: 16,
+    letterSpacing: 2,
+    color: colors.gold,
+    textTransform: "uppercase" as const,
+  },
+  labelMuted: {
+    fontFamily: fonts.bodySemibold,
+    fontSize: 12,
+    lineHeight: 16,
     letterSpacing: 1.5,
     color: colors.textSecondary,
     textTransform: "uppercase" as const,
   },
 } as const;
+
+// Reusable gradients (arrays for expo-linear-gradient)
+export const gradients = {
+  bg: ["#0B0418", "#1A0E33", "#0B0418"] as const,
+  brand: ["#3A1580", "#5B2FCB"] as const,
+  gold: ["#F7DDA0", "#F0C560", "#C79A3E"] as const,
+  card: ["#1A0E33", "#22133F"] as const,
+};
