@@ -12,18 +12,21 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../src/api";
 import { useAuth } from "../../src/auth";
+import { useTranslation } from "../../src/i18n";
 import { TarotCardVisual } from "../../src/TarotCard";
 import { getCardById, useDeck } from "../../src/deck";
 import { colors, spacing, text } from "../../src/theme";
 
-function todayLabel() {
+function todayLabel(lang: string) {
   const d = new Date();
+  const locale = lang === "fr" ? "fr-FR" : "en-US";
   return d
-    .toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
+    .toLocaleDateString(locale, { weekday: "long", month: "long", day: "numeric" })
     .toUpperCase();
 }
 
 export default function Today() {
+  const { t, lang } = useTranslation();
   const { user } = useAuth();
   const deck = useDeck();
   const [horoscope, setHoroscope] = useState<string | null>(null);
@@ -68,12 +71,14 @@ export default function Today() {
         }
       >
         <View style={s.header}>
-          <Text style={text.label}>{todayLabel()}</Text>
-          <Text style={[text.h2, { marginTop: spacing.xs }]}>Hi, {user?.username}.</Text>
+          <Text style={text.label}>{todayLabel(lang)}</Text>
+          <Text style={[text.h2, { marginTop: spacing.xs }]}>
+            {t("home.hi", { name: user?.username || "" })}
+          </Text>
         </View>
 
         <View style={s.section}>
-          <Text style={text.label}>Today&apos;s horoscope</Text>
+          <Text style={text.label}>{t("home.todaysHoroscope")}</Text>
           {loadingH ? (
             <ActivityIndicator color={colors.textPrimary} style={{ marginTop: spacing.lg }} />
           ) : error && !horoscope ? (
@@ -88,7 +93,7 @@ export default function Today() {
         <View style={s.divider} />
 
         <View style={s.section}>
-          <Text style={text.label}>Daily pull</Text>
+          <Text style={text.label}>{t("home.dailyPull")}</Text>
           {loadingC ? (
             <ActivityIndicator color={colors.textPrimary} style={{ marginTop: spacing.lg }} />
           ) : cardMeta ? (
@@ -97,7 +102,7 @@ export default function Today() {
               <View style={s.cardMeta}>
                 <Text style={[text.h3, { textAlign: "center" }]}>
                   {cardMeta.name}
-                  {dailyCard.reversed ? " · Reversed" : ""}
+                  {dailyCard.reversed ? t("home.reversedSuffix") : ""}
                 </Text>
                 <Text style={[text.bodyDim, s.interpretation]}>{dailyCard.interpretation}</Text>
               </View>
@@ -110,7 +115,7 @@ export default function Today() {
           style={s.ghostBtn}
           onPress={() => router.push("/(tabs)/tarot")}
         >
-          <Text style={s.ghostBtnText}>DRAW ANOTHER CARD →</Text>
+          <Text style={s.ghostBtnText}>{t("home.drawAnother")}</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

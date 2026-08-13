@@ -14,6 +14,14 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../src/api";
 import { useAuth } from "../../src/auth";
+import { FeedbackModal } from "../../src/components/FeedbackModal";
+import {
+  LANG_FLAGS,
+  LANG_NAMES,
+  SUPPORTED_LANGS,
+  useTranslation,
+  type Lang,
+} from "../../src/i18n";
 import {
   disableDailyReminder,
   enableDailyReminder,
@@ -50,11 +58,13 @@ function fmt(h: number, m: number) {
 }
 
 export default function Profile() {
-  const { user, signOut } = useAuth();
+  const { t, lang, setLang } = useTranslation();
+  const { user, signOut, refresh } = useAuth();
   const [chart, setChart] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [prefs, setPrefs] = useState<NotifPrefs>({ enabled: false, hour: 8, minute: 0 });
   const [busy, setBusy] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -77,10 +87,7 @@ export default function Profile() {
 
   const toggleReminder = async () => {
     if (Platform.OS === "web") {
-      Alert.alert(
-        "Not on web",
-        "Daily reminders are a mobile-only feature. Open Lumina on your phone.",
-      );
+      Alert.alert(t("profile.notOnWebTitle"), t("profile.notOnWebBody"));
       return;
     }
     setBusy(true);
@@ -93,16 +100,12 @@ export default function Profile() {
         if (res.ok) {
           setPrefs({ ...prefs, enabled: true });
         } else if (!res.canAskAgain) {
-          Alert.alert(
-            "Permission denied",
-            "Enable notifications for Lumina from the system settings.",
-            [
-              { text: "Cancel", style: "cancel" },
-              { text: "Open Settings", onPress: () => Linking.openSettings() },
-            ],
-          );
+          Alert.alert(t("profile.permDeniedTitle"), t("profile.permDeniedBody"), [
+            { text: t("profile.cancel"), style: "cancel" },
+            { text: t("profile.openSettings"), onPress: () => Linking.openSettings() },
+          ]);
         } else {
-          Alert.alert("Permission needed", "Allow notifications to receive daily nudges.");
+          Alert.alert(t("profile.permNeededTitle"), t("profile.permNeededBody"));
         }
       }
     } finally {
@@ -121,16 +124,27 @@ export default function Profile() {
     }
   };
 
+  const changeLang = async (next: Lang) => {
+    if (next === lang) return;
+    await setLang(next);
+    // Refresh user to pick up the persisted server-side language.
+    try {
+      await refresh();
+    } catch {
+      /* not fatal — local storage is source of truth on the client */
+    }
+  };
+
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
       <ScrollView contentContainerStyle={s.scroll}>
         <View style={s.header}>
-          <Text style={text.label}>PROFILE</Text>
+          <Text style={text.label}>{t("profile.label")}</Text>
           <Text style={[text.h1, { marginTop: spacing.sm }]}>@{user?.username}</Text>
           <Text style={[text.bodyDim, { marginTop: spacing.xs }]}>{user?.email}</Text>
           {user?.is_premium ? (
             <View style={s.premiumBadge}>
-              <Text style={s.premiumText}>LUMINA PREMIUM</Text>
+              <Text style={s.premiumText}>{t("profile.premiumBadge")}</Text>
             </View>
           ) : (
             <TouchableOpacity
@@ -138,23 +152,23 @@ export default function Profile() {
               style={s.premiumBtn}
               onPress={() => router.push("/paywall")}
             >
-              <Text style={s.premiumBtnText}>GO PREMIUM</Text>
+              <Text style={s.premiumBtnText}>{t("profile.goPremium")}</Text>
             </TouchableOpacity>
           )}
         </View>
 
         <View style={s.section}>
-          <Text style={text.label}>Birth data</Text>
+          <Text style={text.label}>{t("profile.birthData")}</Text>
           <View style={s.kvRow}>
-            <Text style={text.bodyDim}>Date</Text>
+            <Text style={text.bodyDim}>{t("profile.date")}</Text>
             <Text style={text.body}>{user?.birth_date || "—"}</Text>
           </View>
           <View style={s.kvRow}>
-            <Text style={text.bodyDim}>Time</Text>
+            <Text style={text.bodyDim}>{t("profile.time")}</Text>
             <Text style={text.body}>{user?.birth_time || "—"}</Text>
           </View>
           <View style={s.kvRow}>
-            <Text style={text.bodyDim}>Place</Text>
+            <Text style={text.bodyDim}>{t("profile.place")}</Text>
             <Text style={text.body}>{user?.birth_place || "—"}</Text>
           </View>
         </View>
@@ -162,29 +176,29 @@ export default function Profile() {
         <View style={s.divider} />
 
         <View style={s.section}>
-          <Text style={text.label}>Natal placements</Text>
+          <Text style={text.label}>{t("profile.natalPlacements")}</Text>
           {loading ? (
             <ActivityIndicator color={colors.textPrimary} style={{ marginTop: spacing.lg }} />
           ) : !chart ? (
-            <Text style={[text.bodyDim, { marginTop: spacing.md }]}>Unavailable.</Text>
+            <Text style={[text.bodyDim, { marginTop: spacing.md }]}>{t("profile.unavailable")}</Text>
           ) : (
             <>
               <View style={s.bigRow}>
-                <Text style={text.label}>SUN</Text>
+                <Text style={text.label}>{t("profile.sun")}</Text>
                 <Text style={[text.h3]}>
                   {chart.planets.Sun.sign}{" "}
                   <Text style={text.bodyDim}>{chart.planets.Sun.degrees}°</Text>
                 </Text>
               </View>
               <View style={s.bigRow}>
-                <Text style={text.label}>MOON</Text>
+                <Text style={text.label}>{t("profile.moon")}</Text>
                 <Text style={[text.h3]}>
                   {chart.planets.Moon.sign}{" "}
                   <Text style={text.bodyDim}>{chart.planets.Moon.degrees}°</Text>
                 </Text>
               </View>
               <View style={s.bigRow}>
-                <Text style={text.label}>RISING</Text>
+                <Text style={text.label}>{t("profile.rising")}</Text>
                 <Text style={[text.h3]}>
                   {chart.ascendant.sign}{" "}
                   <Text style={text.bodyDim}>{chart.ascendant.degrees}°</Text>
@@ -213,9 +227,9 @@ export default function Profile() {
         <View style={s.section}>
           <View style={s.reminderHeader}>
             <View style={{ flex: 1 }}>
-              <Text style={text.label}>Daily reminder</Text>
+              <Text style={text.label}>{t("profile.dailyReminder")}</Text>
               <Text style={[text.bodyDim, { marginTop: spacing.xs, fontSize: 13 }]}>
-                A local nudge, once a day, to check your horoscope and pull a card.
+                {t("profile.dailyReminderHint")}
               </Text>
             </View>
             <TouchableOpacity
@@ -237,7 +251,7 @@ export default function Profile() {
           {prefs.enabled ? (
             <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
               <Text style={[text.bodyDim, { fontSize: 13 }]}>
-                Currently: <Text style={{ color: colors.gold }}>{fmt(prefs.hour, prefs.minute)}</Text>
+                {t("profile.reminderCurrent", { time: fmt(prefs.hour, prefs.minute) })}
               </Text>
               <View style={s.timeRow}>
                 {TIME_PRESETS.map((p) => {
@@ -268,10 +282,59 @@ export default function Profile() {
 
         <View style={s.divider} />
 
+        <View style={s.section}>
+          <Text style={text.label}>{t("profile.language")}</Text>
+          <Text style={[text.bodyDim, { marginTop: spacing.xs, fontSize: 13 }]}>
+            {t("profile.languageHint")}
+          </Text>
+          <View style={[s.timeRow, { marginTop: spacing.md }]}>
+            {SUPPORTED_LANGS.map((l) => {
+              const active = l === lang;
+              return (
+                <TouchableOpacity
+                  key={l}
+                  testID={`profile-lang-${l}`}
+                  onPress={() => changeLang(l)}
+                  style={[s.timeChip, active && s.timeChipActive]}
+                >
+                  <Text
+                    style={[
+                      s.timeChipText,
+                      active && { color: colors.textOnGold ?? colors.bg },
+                    ]}
+                  >
+                    {LANG_FLAGS[l]}  {LANG_NAMES[l]}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={s.divider} />
+
+        <View style={s.section}>
+          <Text style={text.label}>{t("profile.feedback")}</Text>
+          <Text style={[text.bodyDim, { marginTop: spacing.xs, fontSize: 13 }]}>
+            {t("profile.feedbackHint")}
+          </Text>
+          <TouchableOpacity
+            testID="profile-open-feedback"
+            style={[s.timeChip, { alignSelf: "flex-start", marginTop: spacing.md }]}
+            onPress={() => setShowFeedback(true)}
+          >
+            <Text style={s.timeChipText}>{t("profile.sendFeedback")}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={s.divider} />
+
         <TouchableOpacity testID="profile-sign-out" style={s.signOut} onPress={signOut}>
-          <Text style={s.signOutText}>SIGN OUT</Text>
+          <Text style={s.signOutText}>{t("profile.signOut")}</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <FeedbackModal visible={showFeedback} onClose={() => setShowFeedback(false)} />
     </SafeAreaView>
   );
 }

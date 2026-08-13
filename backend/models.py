@@ -28,6 +28,7 @@ class UserPublic(BaseModel):
     username: str
     is_premium: bool = False
     onboarded: bool = False
+    email_verified: bool = False
     language: str = "en"
     birth_date: str | None = None
     birth_time: str | None = None
@@ -36,8 +37,31 @@ class UserPublic(BaseModel):
     birth_lng: float | None = None
 
 
+class VerifyEmailIn(BaseModel):
+    email: EmailStr
+    code: str = Field(min_length=4, max_length=8)
+
+
+class ResendCodeIn(BaseModel):
+    email: EmailStr
+
+
+class RegisterResult(BaseModel):
+    """Response after registration — user must verify email before receiving a token."""
+
+    email: EmailStr
+    verification_required: bool = True
+    message: str = "Verification code sent to your email."
+
+
 class LanguageIn(BaseModel):
     language: str = Field(min_length=2, max_length=8)
+
+
+class FeedbackIn(BaseModel):
+    message: str = Field(min_length=3, max_length=2000)
+    category: str = Field(default="other")  # "bug" | "idea" | "other"
+    rating: int | None = Field(default=None, ge=1, le=5)
 
 
 class TokenOut(BaseModel):
@@ -89,6 +113,7 @@ def to_public(u: dict) -> UserPublic:
         username=u["username"],
         is_premium=u.get("is_premium", False),
         onboarded=u.get("onboarded", False),
+        email_verified=u.get("email_verified", False),
         language=u.get("language") or "en",
         birth_date=u.get("birth_date"),
         birth_time=u.get("birth_time"),

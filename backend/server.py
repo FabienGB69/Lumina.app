@@ -23,6 +23,7 @@ from starlette.middleware.cors import CORSMiddleware
 from core.db import client as mongo_client
 from core.db import ensure_indexes
 from routes.auth import router as auth_router
+from routes.feedback import router as feedback_router
 from routes.friends import router as friends_router
 from routes.onboarding import router as onboarding_router
 from routes.stripe import router as stripe_router
@@ -53,6 +54,7 @@ api.include_router(onboarding_router)
 api.include_router(tarot_router)
 api.include_router(friends_router)
 api.include_router(stripe_router)
+api.include_router(feedback_router)
 
 app.include_router(api)
 

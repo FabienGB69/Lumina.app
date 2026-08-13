@@ -16,17 +16,18 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../src/api";
 import { useAuth } from "../src/auth";
+import { useTranslation } from "../src/i18n";
 import { colors, spacing, text } from "../src/theme";
 
-const BENEFITS = [
-  { t: "Unlimited tarot draws", d: "No daily cap. Pull until you find the truth." },
-  { t: "Deeper interpretations", d: "Readings that don't soften the edges." },
-  { t: "Compatibility deep-dives", d: "See every friction point. Not just the score." },
-  { t: "Priority for new readings", d: "Future spreads land in your deck first." },
-];
-
 export default function Paywall() {
+  const { t } = useTranslation();
   const { refresh } = useAuth();
+  const BENEFITS = [
+    { t: t("paywall.benefit1Title"), d: t("paywall.benefit1Desc") },
+    { t: t("paywall.benefit2Title"), d: t("paywall.benefit2Desc") },
+    { t: t("paywall.benefit3Title"), d: t("paywall.benefit3Desc") },
+    { t: t("paywall.benefit4Title"), d: t("paywall.benefit4Desc") },
+  ];
   const [loading, setLoading] = useState(false);
   const [polling, setPolling] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +66,7 @@ export default function Paywall() {
         setPolling(false);
       }
     } catch (e: any) {
-      setError(e.message || "Could not start checkout");
+      setError(e.message || t("paywall.errCheckout"));
     } finally {
       setLoading(false);
     }
@@ -78,10 +79,10 @@ export default function Paywall() {
           <Ionicons name="close" size={28} color={colors.textPrimary} />
         </Pressable>
 
-        <Text style={text.label}>LUMINA PREMIUM</Text>
-        <Text style={[text.h1, s.title]}>Truth{"\n"}costs.</Text>
+        <Text style={text.label}>{t("paywall.label")}</Text>
+        <Text style={[text.h1, s.title]}>{t("paywall.title")}</Text>
         <Text style={[text.bodyDim, s.subtitle]}>
-          Unlock the deck. Lose the limits. Let the planets actually pull their weight.
+          {t("paywall.subtitle")}
         </Text>
 
         <View style={s.benefits}>
@@ -98,7 +99,7 @@ export default function Paywall() {
 
         <View style={s.priceWrap}>
           <Text style={s.price}>$4.99</Text>
-          <Text style={[text.label, { color: colors.textSecondary }]}>PER MONTH · CANCEL ANYTIME</Text>
+          <Text style={[text.label, { color: colors.textSecondary }]}>{t("paywall.perMonth")}</Text>
         </View>
 
         {error ? (
@@ -116,12 +117,12 @@ export default function Paywall() {
           {loading ? (
             <ActivityIndicator color={colors.textInverse} />
           ) : (
-            <Text style={s.unlockBtnText}>{polling ? "VERIFYING..." : "UNLOCK"}</Text>
+            <Text style={s.unlockBtnText}>{polling ? t("paywall.verifying") : t("paywall.unlock")}</Text>
           )}
         </TouchableOpacity>
 
         <Text style={s.fine}>
-          You will be redirected to Stripe. Test mode in preview. Cancel anytime from settings.
+          {t("paywall.fine")}
         </Text>
       </ScrollView>
     </SafeAreaView>

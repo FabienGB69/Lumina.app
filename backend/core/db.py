@@ -16,6 +16,7 @@ readings_col = db["readings"]
 friends_col = db["friends"]
 payments_col = db["payments"]
 compat_col = db["compat"]
+feedback_col = db["feedback"]
 
 
 async def ensure_indexes() -> None:

@@ -14,9 +14,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LuminaLogo } from "../src/components/LuminaLogo";
 import { useAuth } from "../src/auth";
+import { useTranslation } from "../src/i18n";
 import { colors, gradients, radii, spacing, text } from "../src/theme";
 
 export default function Login() {
+  const { t } = useTranslation();
   const { signIn, signInWithGoogle } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -31,7 +33,7 @@ export default function Login() {
       await signIn(email.trim(), password);
       router.replace("/");
     } catch (e: any) {
-      setError(e.message || "Login failed");
+      setError(e.message || t("auth.errLoginGeneric"));
     } finally {
       setLoading(false);
     }
@@ -44,7 +46,7 @@ export default function Login() {
       const u = await signInWithGoogle();
       if (u) router.replace("/");
     } catch (e: any) {
-      setError(e.message || "Google sign-in failed");
+      setError(e.message || t("auth.errGoogleGeneric"));
     } finally {
       setGLoading(false);
     }
@@ -61,15 +63,13 @@ export default function Login() {
           <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
             <View style={s.header}>
               <LuminaLogo size={110} />
-              <Text style={[text.label, s.brand]}>LUMINA</Text>
-              <Text style={[text.h1, s.title]}>Welcome{"\n"}back.</Text>
-              <Text style={[text.bodyDim, s.subtitle]}>
-                The universe noticed your absence.
-              </Text>
+              <Text style={[text.label, s.brand]}>{t("auth.brand")}</Text>
+              <Text style={[text.h1, s.title]}>{t("auth.loginTitle")}</Text>
+              <Text style={[text.bodyDim, s.subtitle]}>{t("auth.loginSubtitle")}</Text>
             </View>
 
             <View style={s.field}>
-              <Text style={text.labelMuted}>Email</Text>
+              <Text style={text.labelMuted}>{t("auth.email")}</Text>
               <TextInput
                 testID="login-email-input"
                 value={email}
@@ -83,7 +83,7 @@ export default function Login() {
               />
             </View>
             <View style={s.field}>
-              <Text style={text.labelMuted}>Password</Text>
+              <Text style={text.labelMuted}>{t("auth.password")}</Text>
               <TextInput
                 testID="login-password-input"
                 value={password}
@@ -115,14 +115,14 @@ export default function Login() {
                 style={s.primaryBtnGrad}
               >
                 <Text style={s.primaryBtnText}>
-                  {loading ? "ENTERING..." : "ENTER"}
+                  {loading ? t("auth.entering") : t("auth.enter")}
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
 
             <View style={s.divider}>
               <View style={s.dividerLine} />
-              <Text style={s.dividerText}>OR</Text>
+              <Text style={s.dividerText}>{t("auth.or")}</Text>
               <View style={s.dividerLine} />
             </View>
 
@@ -135,16 +135,16 @@ export default function Login() {
             >
               <Text style={s.googleG}>G</Text>
               <Text style={s.googleBtnText}>
-                {gLoading ? "CONNECTING..." : "CONTINUE WITH GOOGLE"}
+                {gLoading ? t("auth.connecting") : t("auth.google")}
               </Text>
             </TouchableOpacity>
 
             <Link href="/register" asChild>
               <TouchableOpacity testID="login-to-register" style={s.linkBtn}>
                 <Text style={[text.bodyDim, { textAlign: "center" }]}>
-                  No account?{" "}
+                  {t("auth.noAccount")}{" "}
                   <Text style={{ color: colors.gold, textDecorationLine: "underline" }}>
-                    Make one
+                    {t("auth.makeOne")}
                   </Text>
                 </Text>
               </TouchableOpacity>
@@ -208,11 +208,7 @@ const s = StyleSheet.create({
     marginTop: spacing.sm,
     gap: spacing.md,
   },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.border,
-  },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
   dividerText: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 11,

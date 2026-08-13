@@ -4,9 +4,11 @@ import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "rea
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../src/api";
 import { useAuth } from "../src/auth";
+import { useTranslation } from "../src/i18n";
 import { colors, spacing, text } from "../src/theme";
 
 export default function PaywallSuccess() {
+  const { t } = useTranslation();
   const params = useLocalSearchParams<{ session_id?: string }>();
   const { refresh } = useAuth();
   const [status, setStatus] = useState<"loading" | "ok" | "pending" | "error">("loading");
@@ -47,32 +49,32 @@ export default function PaywallSuccess() {
         {status === "loading" ? (
           <>
             <ActivityIndicator size="large" color={colors.textPrimary} />
-            <Text style={[text.label, { marginTop: spacing.lg }]}>VERIFYING</Text>
+            <Text style={[text.label, { marginTop: spacing.lg }]}>{t("paywall.successVerifying")}</Text>
           </>
         ) : status === "ok" ? (
           <>
-            <Text style={[text.h1, { textAlign: "center" }]}>Welcome.</Text>
+            <Text style={[text.h1, { textAlign: "center" }]}>{t("paywall.successTitle")}</Text>
             <Text style={[text.bodyDim, s.center]}>
-              You&apos;re premium. The deck is yours.
+              {t("paywall.successBody")}
             </Text>
             <TouchableOpacity
               testID="paywall-success-continue"
               style={s.btn}
               onPress={() => router.replace("/(tabs)")}
             >
-              <Text style={s.btnText}>CONTINUE</Text>
+              <Text style={s.btnText}>{t("paywall.continueBtn")}</Text>
             </TouchableOpacity>
           </>
         ) : (
           <>
             <Text style={[text.h2, { textAlign: "center" }]}>
-              {status === "pending" ? "Still verifying..." : "Something went sideways."}
+              {status === "pending" ? t("paywall.stillVerifying") : t("paywall.sidewaysTitle")}
             </Text>
             <Text style={[text.bodyDim, s.center]}>
-              If your card was charged, premium will activate shortly.
+              {t("paywall.sidewaysBody")}
             </Text>
             <TouchableOpacity style={s.btn} onPress={() => router.replace("/(tabs)")}>
-              <Text style={s.btnText}>BACK</Text>
+              <Text style={s.btnText}>{t("paywall.back")}</Text>
             </TouchableOpacity>
           </>
         )}

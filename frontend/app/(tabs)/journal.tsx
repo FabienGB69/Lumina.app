@@ -9,9 +9,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../src/api";
+import { useTranslation } from "../../src/i18n";
 import { colors, spacing, text } from "../../src/theme";
 
 export default function Journal() {
+  const { t } = useTranslation();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -34,15 +36,15 @@ export default function Journal() {
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
       <View style={s.header}>
-        <Text style={text.label}>JOURNAL</Text>
-        <Text style={[text.h2, { marginTop: spacing.xs }]}>The receipts.</Text>
+        <Text style={text.label}>{t("journal.label")}</Text>
+        <Text style={[text.h2, { marginTop: spacing.xs }]}>{t("journal.title")}</Text>
       </View>
       {loading ? (
         <ActivityIndicator color={colors.textPrimary} style={{ marginTop: spacing.xl }} />
       ) : items.length === 0 ? (
         <View style={s.empty}>
           <Text style={[text.bodyDim, { textAlign: "center" }]}>
-            Nothing here yet. Draw a card.
+            {t("journal.empty")}
           </Text>
         </View>
       ) : (
@@ -65,12 +67,12 @@ export default function Journal() {
             <View testID={`journal-item-${item.id}`} style={s.row}>
               <View style={s.rowHead}>
                 <Text style={text.label}>
-                  {(item.kind || "draw").toUpperCase()} · {item.date}
+                  {(item.kind === "daily" ? t("journal.daily") : t("journal.manual"))} · {item.date}
                 </Text>
               </View>
               <Text style={[text.h3, { marginTop: spacing.sm }]}>
                 {item.card_name}
-                {item.reversed ? " · Reversed" : ""}
+                {item.reversed ? t("home.reversedSuffix") : ""}
               </Text>
               {item.question ? (
                 <Text style={[text.bodyDim, { marginTop: spacing.sm, fontStyle: "italic" }]}>

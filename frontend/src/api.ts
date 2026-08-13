@@ -64,6 +64,7 @@ export type User = {
   username: string;
   is_premium: boolean;
   onboarded: boolean;
+  language?: string;
   birth_date?: string | null;
   birth_time?: string | null;
   birth_place?: string | null;
@@ -119,4 +120,11 @@ export const api = {
     request<{ url: string; session_id: string }>("/stripe/checkout", { method: "POST" }),
   stripeSession: (id: string) =>
     request<{ payment_status: string; is_premium: boolean }>(`/stripe/session/${id}`),
+  setLanguage: (language: string) =>
+    request<User>("/users/language", { method: "PUT", body: { language } }),
+  submitFeedback: (message: string, category: string, rating: number | null) =>
+    request<{ ok: boolean; id: string }>("/feedback", {
+      method: "POST",
+      body: { message, category, rating },
+    }),
 };

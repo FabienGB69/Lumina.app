@@ -30,6 +30,12 @@ STRIPE_PRICE_AMOUNT: int = int(os.environ.get("STRIPE_PREMIUM_PRICE_AMOUNT", "49
 STRIPE_CURRENCY: str = os.environ.get("STRIPE_PREMIUM_CURRENCY", "usd")
 APP_URL: str = os.environ.get("APP_URL", "")
 
+# Email (Emergent-managed Resend)
+EMERGENT_EMAIL_KEY: str = os.environ.get("EMERGENT_EMAIL_KEY", "")
+EMAIL_FROM_NAME: str = os.environ.get("EMAIL_FROM_NAME", "Lumina")
+# Hardcoded per playbook — survives redeploy.
+EMAIL_BASE_URL = "https://integrations.emergentagent.com"
+
 EMERGENT_SESSION_DATA_URL = (
     "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
 )

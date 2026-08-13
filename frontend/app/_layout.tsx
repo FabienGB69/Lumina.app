@@ -10,6 +10,7 @@ import { StatusBar } from "expo-status-bar";
 import React from "react";
 import { ActivityIndicator, View } from "react-native";
 import { AuthProvider } from "../src/auth";
+import { I18nProvider } from "../src/i18n";
 import { colors } from "../src/theme";
 
 export default function RootLayout() {
@@ -39,15 +40,17 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthProvider>
-      <StatusBar style="light" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.bg },
-          animation: "fade",
-        }}
-      />
-    </AuthProvider>
+    <I18nProvider>
+      <AuthProvider>
+        <StatusBar style="light" />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.bg },
+            animation: "fade",
+          }}
+        />
+      </AuthProvider>
+    </I18nProvider>
   );
 }

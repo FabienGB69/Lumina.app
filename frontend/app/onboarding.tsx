@@ -17,6 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../src/api";
 import { useAuth } from "../src/auth";
 import { CITIES, CityPreset } from "../src/cities";
+import { useTranslation } from "../src/i18n";
 import { colors, spacing, text } from "../src/theme";
 
 function isValidDate(s: string) {
@@ -31,6 +32,7 @@ function isValidTime(s: string) {
 }
 
 export default function Onboarding() {
+  const { t } = useTranslation();
   const { refresh } = useAuth();
   const [step, setStep] = useState<0 | 1 | 2>(0);
   const [date, setDate] = useState("");
@@ -63,7 +65,7 @@ export default function Onboarding() {
       await refresh();
       router.replace("/(tabs)");
     } catch (e: any) {
-      setError(e.message || "Could not save");
+      setError(e.message || t("onboarding.errSaveGeneric"));
     } finally {
       setLoading(false);
     }
@@ -76,7 +78,7 @@ export default function Onboarding() {
         style={s.flex}
       >
         <View style={s.header}>
-          <Text style={text.label}>STEP {step + 1} / 3</Text>
+          <Text style={text.label}>{t("onboarding.step", { n: step + 1, total: 3 })}</Text>
           <View style={s.progressRow}>
             {[0, 1, 2].map((i) => (
               <View
@@ -93,15 +95,15 @@ export default function Onboarding() {
         <View style={s.content}>
           {step === 0 && (
             <>
-              <Text style={[text.h1, s.title]}>When{"\n"}did you{"\n"}arrive?</Text>
+              <Text style={[text.h1, s.title]}>{t("onboarding.dateTitle")}</Text>
               <Text style={[text.bodyDim, s.subtitle]}>
-                Your birth date. Be precise. Vague entries get vague readings.
+                {t("onboarding.dateSubtitle")}
               </Text>
               <TextInput
                 testID="onboarding-date-input"
                 value={date}
                 onChangeText={setDate}
-                placeholder="YYYY-MM-DD"
+                placeholder={t("onboarding.datePlaceholder")}
                 placeholderTextColor={colors.textTertiary}
                 style={s.input}
                 keyboardType="numbers-and-punctuation"
@@ -111,15 +113,15 @@ export default function Onboarding() {
           )}
           {step === 1 && (
             <>
-              <Text style={[text.h1, s.title]}>What{"\n"}hour?</Text>
+              <Text style={[text.h1, s.title]}>{t("onboarding.hourTitle")}</Text>
               <Text style={[text.bodyDim, s.subtitle]}>
-                Local time of birth. If you don&apos;t know, guess noon. The rising sign will be a lie.
+                {t("onboarding.hourSubtitle")}
               </Text>
               <TextInput
                 testID="onboarding-time-input"
                 value={time}
                 onChangeText={setTime}
-                placeholder="HH:MM (24h)"
+                placeholder={t("onboarding.hourPlaceholder")}
                 placeholderTextColor={colors.textTertiary}
                 style={s.input}
                 keyboardType="numbers-and-punctuation"
@@ -129,9 +131,9 @@ export default function Onboarding() {
           )}
           {step === 2 && (
             <>
-              <Text style={[text.h1, s.title]}>Where?</Text>
+              <Text style={[text.h1, s.title]}>{t("onboarding.whereTitle")}</Text>
               <Text style={[text.bodyDim, s.subtitle]}>
-                Geography matters. The sky was different over you.
+                {t("onboarding.whereSubtitle")}
               </Text>
               <TouchableOpacity
                 testID="onboarding-city-picker"
@@ -139,7 +141,7 @@ export default function Onboarding() {
                 onPress={() => setShowPicker(true)}
               >
                 <Text style={city ? text.bodyLg : [text.bodyLg, { color: colors.textTertiary }]}>
-                  {city ? `${city.name}, ${city.country}` : "Select a city"}
+                  {city ? `${city.name}, ${city.country}` : t("onboarding.selectCity")}
                 </Text>
                 <Text style={[text.label, { color: colors.textPrimary }]}>▸</Text>
               </TouchableOpacity>
@@ -193,20 +195,20 @@ export default function Onboarding() {
         <SafeAreaView style={s.safe} edges={["top", "bottom"]}>
           <View style={{ padding: spacing.lg, gap: spacing.md, flex: 1 }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-              <Text style={text.h3}>Select city</Text>
+              <Text style={text.h3}>{t("onboarding.citySearchTitle")}</Text>
               <Pressable
                 testID="city-picker-close"
                 onPress={() => setShowPicker(false)}
                 hitSlop={12}
               >
-                <Text style={[text.label, { color: colors.textPrimary }]}>CLOSE</Text>
+                <Text style={[text.label, { color: colors.textPrimary }]}>{t("onboarding.close")}</Text>
               </Pressable>
             </View>
             <TextInput
               testID="city-picker-search"
               value={search}
               onChangeText={setSearch}
-              placeholder="Search"
+              placeholder={t("onboarding.citySearchPlaceholder")}
               placeholderTextColor={colors.textTertiary}
               style={s.input}
             />

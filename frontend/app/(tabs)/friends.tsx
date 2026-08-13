@@ -13,11 +13,13 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../src/api";
+import { useTranslation } from "../../src/i18n";
 import { colors, spacing, text } from "../../src/theme";
 
 type Friend = { id: string; username: string; compat_score: number | null };
 
 export default function FriendsScreen() {
+  const { t } = useTranslation();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -74,15 +76,15 @@ export default function FriendsScreen() {
     <SafeAreaView style={s.safe} edges={["top"]}>
       <View style={s.header}>
         <View>
-          <Text style={text.label}>FRIENDS</Text>
-          <Text style={[text.h2, { marginTop: spacing.xs }]}>Match maps.</Text>
+          <Text style={text.label}>{t("friends.label")}</Text>
+          <Text style={[text.h2, { marginTop: spacing.xs }]}>{t("friends.title")}</Text>
         </View>
         <TouchableOpacity
           testID="friends-add-btn"
           style={s.addBtn}
           onPress={() => setShowAdd(true)}
         >
-          <Text style={s.addBtnText}>+ ADD</Text>
+          <Text style={s.addBtnText}>{t("friends.add")}</Text>
         </TouchableOpacity>
       </View>
 
@@ -91,7 +93,7 @@ export default function FriendsScreen() {
       ) : friends.length === 0 ? (
         <View style={s.empty}>
           <Text style={[text.bodyDim, { textAlign: "center" }]}>
-            No one. Yet. Add someone by username.
+            {t("friends.empty")}
           </Text>
         </View>
       ) : (
@@ -110,15 +112,15 @@ export default function FriendsScreen() {
                 <Text style={text.bodyLg}>@{item.username}</Text>
                 <Text style={text.bodyDim}>
                   {item.compat_score !== null
-                    ? `Compatibility: ${item.compat_score}%`
-                    : "Tap to compute"}
+                    ? t("friends.compatibility", { n: item.compat_score })
+                    : t("friends.tapToCompute")}
                 </Text>
               </View>
               {computing === item.id ? (
                 <ActivityIndicator color={colors.textPrimary} />
               ) : (
                 <Text style={[text.label, { color: colors.textPrimary }]}>
-                  {item.compat_score !== null ? "VIEW →" : "RUN →"}
+                  {item.compat_score !== null ? t("friends.view") : t("friends.run")}
                 </Text>
               )}
             </TouchableOpacity>
@@ -130,19 +132,19 @@ export default function FriendsScreen() {
         <SafeAreaView style={s.safe} edges={["top", "bottom"]}>
           <View style={s.modalContent}>
             <View style={s.modalHead}>
-              <Text style={text.h3}>Add friend</Text>
+              <Text style={text.h3}>{t("friends.addFriendTitle")}</Text>
               <Pressable testID="friends-add-close" onPress={() => setShowAdd(false)} hitSlop={12}>
-                <Text style={[text.label, { color: colors.textPrimary }]}>CLOSE ×</Text>
+                <Text style={[text.label, { color: colors.textPrimary }]}>{t("friends.close")}</Text>
               </Pressable>
             </View>
             <Text style={[text.bodyDim, { marginVertical: spacing.md }]}>
-              Their username. They must be onboarded.
+              {t("friends.addFriendHint")}
             </Text>
             <TextInput
               testID="friends-add-input"
               value={uname}
               onChangeText={setUname}
-              placeholder="username"
+              placeholder={t("friends.usernamePlaceholder")}
               placeholderTextColor={colors.textTertiary}
               autoCapitalize="none"
               style={s.input}
@@ -158,7 +160,7 @@ export default function FriendsScreen() {
               onPress={addFriend}
               disabled={adding || !uname.trim()}
             >
-              <Text style={s.primaryBtnText}>{adding ? "ADDING..." : "ADD"}</Text>
+              <Text style={s.primaryBtnText}>{adding ? t("friends.adding") : t("friends.add")}</Text>
             </TouchableOpacity>
           </View>
         </SafeAreaView>
@@ -168,19 +170,19 @@ export default function FriendsScreen() {
         <SafeAreaView style={s.safe} edges={["top", "bottom"]}>
           <View style={s.modalContent}>
             <View style={s.modalHead}>
-              <Text style={text.label}>COMPATIBILITY</Text>
+              <Text style={text.label}>{t("friends.compatLabel")}</Text>
               <Pressable
                 testID="friends-compat-close"
                 onPress={() => setCompatDetail(null)}
                 hitSlop={12}
               >
-                <Text style={[text.label, { color: colors.textPrimary }]}>CLOSE ×</Text>
+                <Text style={[text.label, { color: colors.textPrimary }]}>{t("friends.close")}</Text>
               </Pressable>
             </View>
             {compatDetail && (
               <ScrollView contentContainerStyle={{ paddingVertical: spacing.lg, gap: spacing.lg }}>
                 <Text style={[text.h3, { textAlign: "center" }]}>
-                  You & @{compatDetail.friend_username}
+                  {t("friends.youAnd", { name: compatDetail.friend_username })}
                 </Text>
                 <Text style={s.bigScore}>{compatDetail.score}%</Text>
                 <Text testID="friends-compat-reading" style={[text.bodyLg, s.compatReading]}>

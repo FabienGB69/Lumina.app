@@ -140,6 +140,23 @@ export type Translations = {
     signOut: string;
     language: string;
     languageHint: string;
+    feedback: string;
+    feedbackHint: string;
+    sendFeedback: string;
+    feedbackTitle: string;
+    feedbackCategory: string;
+    catBug: string;
+    catIdea: string;
+    catOther: string;
+    feedbackRating: string;
+    feedbackMessage: string;
+    feedbackPlaceholder: string;
+    submit: string;
+    submitting: string;
+    thanksTitle: string;
+    thanksBody: string;
+    feedbackTooShort: string;
+    close: string;
   };
   paywall: {
     label: string;
@@ -303,6 +320,23 @@ export const en: Translations = {
     signOut: "SIGN OUT",
     language: "Language",
     languageHint: "Interface and readings will use this language.",
+    feedback: "Feedback",
+    feedbackHint: "Tell us what's broken, wanted, or working.",
+    sendFeedback: "SEND FEEDBACK",
+    feedbackTitle: "Send feedback",
+    feedbackCategory: "Category",
+    catBug: "Bug",
+    catIdea: "Idea",
+    catOther: "Other",
+    feedbackRating: "Rating (optional)",
+    feedbackMessage: "Your message",
+    feedbackPlaceholder: "What's on your mind?",
+    submit: "SUBMIT",
+    submitting: "SUBMITTING...",
+    thanksTitle: "Received.",
+    thanksBody: "The stars have your notes.",
+    feedbackTooShort: "Please write a bit more.",
+    close: "CLOSE ×",
   },
   paywall: {
     label: "LUMINA PREMIUM",
@@ -468,6 +502,23 @@ export const fr: Translations = {
     signOut: "SE DÉCONNECTER",
     language: "Langue",
     languageHint: "L'interface et les lectures utiliseront cette langue.",
+    feedback: "Retour",
+    feedbackHint: "Dis-nous ce qui casse, ce qui manque, ce qui marche.",
+    sendFeedback: "ENVOYER UN RETOUR",
+    feedbackTitle: "Envoyer un retour",
+    feedbackCategory: "Catégorie",
+    catBug: "Bug",
+    catIdea: "Idée",
+    catOther: "Autre",
+    feedbackRating: "Note (facultatif)",
+    feedbackMessage: "Ton message",
+    feedbackPlaceholder: "Qu'est-ce que tu as en tête ?",
+    submit: "ENVOYER",
+    submitting: "ENVOI...",
+    thanksTitle: "Reçu.",
+    thanksBody: "Les étoiles ont pris note.",
+    feedbackTooShort: "Écris un peu plus, s'il te plaît.",
+    close: "FERMER ×",
   },
   paywall: {
     label: "LUMINA PREMIUM",

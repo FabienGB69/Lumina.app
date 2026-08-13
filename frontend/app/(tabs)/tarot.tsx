@@ -21,6 +21,7 @@ import Animated, {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../src/api";
 import { useAuth } from "../../src/auth";
+import { useTranslation } from "../../src/i18n";
 import { TarotCardBack, TarotCardVisual } from "../../src/TarotCard";
 import { getCardById, useDeck } from "../../src/deck";
 import { colors, spacing, text } from "../../src/theme";
@@ -29,6 +30,7 @@ const CARD_W = 220;
 const CARD_H = 360;
 
 export default function TarotScreen() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const deck = useDeck();
   const [question, setQuestion] = useState("");
@@ -69,7 +71,7 @@ export default function TarotScreen() {
         });
       }, 600);
     } catch (e: any) {
-      setError(e.message || "Could not draw");
+      setError(e.message || t("tarot.errDraw"));
       if (e.status === 402) {
         setShowReading(false);
         router.push("/paywall");
@@ -85,20 +87,18 @@ export default function TarotScreen() {
     <SafeAreaView style={s.safe} edges={["top"]}>
       <ScrollView contentContainerStyle={s.scroll}>
         <View style={s.header}>
-          <Text style={text.label}>TAROT</Text>
-          <Text style={[text.h1, s.title]}>Draw{"\n"}a card.</Text>
-          <Text style={[text.bodyDim, s.subtitle]}>
-            Face it. The deck owes you nothing.
-          </Text>
+          <Text style={text.label}>{t("tarot.label")}</Text>
+          <Text style={[text.h1, s.title]}>{t("tarot.title")}</Text>
+          <Text style={[text.bodyDim, s.subtitle]}>{t("tarot.subtitle")}</Text>
         </View>
 
         <View style={s.qWrap}>
-          <Text style={text.label}>Your question (optional)</Text>
+          <Text style={text.label}>{t("tarot.questionLabel")}</Text>
           <TextInput
             testID="tarot-question-input"
             value={question}
             onChangeText={setQuestion}
-            placeholder="Why do I keep doing this?"
+            placeholder={t("tarot.questionPlaceholder")}
             placeholderTextColor={colors.textTertiary}
             style={s.input}
             multiline
@@ -115,12 +115,12 @@ export default function TarotScreen() {
           onPress={draw}
           disabled={drawing}
         >
-          <Text style={s.primaryBtnText}>{drawing ? "DRAWING..." : "DRAW"}</Text>
+          <Text style={s.primaryBtnText}>{drawing ? t("tarot.drawing") : t("tarot.draw")}</Text>
         </TouchableOpacity>
 
         {!user?.is_premium && (
           <Text style={[text.bodyDim, s.freeNote]}>
-            Free: 1 manual draw / day. Premium: unlimited.
+            {t("tarot.freeNote")}
           </Text>
         )}
 
@@ -145,7 +145,7 @@ export default function TarotScreen() {
               onPress={() => setShowReading(false)}
               style={s.closeBtn}
             >
-              <Text style={[text.label, { color: colors.textPrimary }]}>CLOSE ×</Text>
+              <Text style={[text.label, { color: colors.textPrimary }]}>{t("tarot.close")}</Text>
             </Pressable>
 
             <View style={s.flipWrap}>
@@ -171,7 +171,7 @@ export default function TarotScreen() {
               <ScrollView style={{ flex: 1 }} contentContainerStyle={s.readingScroll}>
                 <Text style={[text.h2, s.readingTitle]}>
                   {cardMeta.name}
-                  {reading.reversed ? " · Reversed" : ""}
+                  {reading.reversed ? t("home.reversedSuffix") : ""}
                 </Text>
                 <Text testID="tarot-reading-text" style={[text.bodyLg, s.readingBody]}>
                   {reading.interpretation}
